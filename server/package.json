@@ -6,9 +6,10 @@
     "check": "tsc --noEmit",
     "test": "vitest run",
     "sync-guidance": "node scripts/sync-guidance.mjs",
-    "db:local": "wrangler d1 migrations apply putia --local",
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "db:local": "cf d1 migrations apply fe7c73d0-0a92-42de-8eec-5e4fbf1af5ab --local --persist-to .cloudflare/state",
+    "db:remote": "cf d1 migrations apply fe7c73d0-0a92-42de-8eec-5e4fbf1af5ab",
+    "dev": "cf dev",
+    "deploy": "cf deploy"
   },
   "dependencies": {
     "@cloudflare/workers-oauth-provider": "^1.2.4",
@@ -16,9 +17,11 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^2.0.0-beta.v.8",
     "@cloudflare/workers-types": "^5.20261022.1",
+    "cf": "^1.0.0-beta.26",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.5",
-    "wrangler": "^4.152.0"
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   }
 }

@@ -44,8 +44,8 @@ bash -n scripts/*.sh
 
 # Any OS with Node 24 (the server)
 (cd server && npm ci && npm run check && npm test)
-(cd server && npm run db:local && npx wrangler dev --port 8787)   # then, in another shell:
-node server/test/e2e.mjs http://127.0.0.1:8787
+(cd server && npm run db:local && npx cf dev)   # then, in another shell:
+node server/test/e2e.mjs http://localhost:5173
 
 # Any OS with Swift 6.2 (Linux runs PutiaCore; macOS also PutiaImaging)
 swift test --package-path ios/Packages/PutiaKit
@@ -67,5 +67,6 @@ python3 scripts/verify-ios-bundle.py ios/DerivedData-Release/Build/Products/Rele
 
 ## Git
 
-- Never commit signing material (`*.p12`, `*.p8`, `*.mobileprovision`, `*.key.pem`, `*.certSigningRequest`), `ios/Config/Signing.local.xcconfig`, the generated `ios/Putia.xcodeproj`, build products, `server/.wrangler/` or `server/.dev.vars`.
+- Never commit signing material (`*.p12`, `*.p8`, `*.mobileprovision`, `*.key.pem`, `*.certSigningRequest`), `ios/Config/Signing.local.xcconfig`, the generated `ios/Putia.xcodeproj`, build products, `server/.cloudflare/` or `server/.dev.vars`.
+- Use the `cf` CLI for everything Cloudflare (develop, migrate, deploy). Never `wrangler`, the old CLI.
 - Never pass signing settings to `xcodebuild` on the command line: they would also reach the Swift package targets. App signing goes through `ios/Config/Putia.xcconfig`.

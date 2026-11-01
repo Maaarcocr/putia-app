@@ -61,22 +61,17 @@ Swift 6, SwiftUI with Observation, iOS 26+, iPhone only. XcodeGen generates the 
 
 ## Deploying
 
-The server runs on the owner's Cloudflare account. Once, from `server/`:
+The server runs on the owner's Cloudflare account and uses the `cf` CLI, never `wrangler`. The Worker and its bindings are in `server/cloudflare.config.ts`; `cf` builds it with Vite (`server/vite.config.ts`). The resources already exist: D1 `putia`, R2 `putia-photos` and KV `putia-oauth`. Their IDs are in `cloudflare.config.ts`, and the D1 ID is also in the `db:*` scripts in `package.json`.
+
+After every server change, from `server/` (signed in with `cf auth login`):
 
 ```sh
-npx wrangler login
-npx wrangler d1 create putia             # paste the database_id into wrangler.jsonc
-npx wrangler r2 bucket create putia-photos
-npx wrangler kv namespace create putia-oauth   # paste the id into wrangler.jsonc
+npm run db:remote    # cf d1 migrations apply <id>: applies new files in migrations/
+npx cf deploy
 ```
 
-Then, and after every server change:
+Locally, `npm run db:local` applies the migrations to the state `cf dev` uses (`server/.cloudflare/state`), and `npx cf dev` serves the Worker on http://localhost:5173.
 
-```sh
-npx wrangler d1 migrations apply putia --remote
-npx wrangler deploy
-```
-
-`.github/workflows/server.yml` does the second part on every change to `server/` on `main`, once the repository has the secrets `CLOUDFLARE_API_TOKEN` (Workers Scripts: Edit, D1: Edit) and `CLOUDFLARE_ACCOUNT_ID`.
+`.github/workflows/server.yml` deploys on every change to `server/` on `main`, once the repository has the secrets `CLOUDFLARE_API_TOKEN` (Workers Scripts, D1, Workers KV Storage and Workers R2 Storage: Edit) and `CLOUDFLARE_ACCOUNT_ID`.
 
 The app reads the server's host from `PUTIA_SERVER_HOST` in `ios/Config/Putia.xcconfig`.

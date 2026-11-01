@@ -26,6 +26,8 @@ jobs:
     name: Server tests (local Worker)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      CF_SEND_TELEMETRY: "false"
     defaults:
       run:
         working-directory: server
@@ -42,9 +44,9 @@ jobs:
       - name: End-to-end against a local Worker (records, photos, pairing, OAuth, MCP tools, undo)
         run: |
           npm run db:local
-          npx wrangler dev --port 8787 > wrangler.log 2>&1 &
-          for attempt in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8787/ && break; sleep 1; done
-          node test/e2e.mjs http://127.0.0.1:8787 || { tail -50 wrangler.log; exit 1; }
+          npx cf dev > dev.log 2>&1 &
+          for attempt in $(seq 1 60); do curl -s -o /dev/null http://localhost:5173/ && break; sleep 1; done
+          node test/e2e.mjs http://localhost:5173 || { tail -50 dev.log; exit 1; }
   core:
     name: Core tests (Linux)
     needs: pipeline

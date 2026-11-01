@@ -1,11 +1,11 @@
-// End-to-end check against a local server (`npm run db:local && npx wrangler dev --port 8787`):
-//   node test/e2e.mjs [base URL, default http://localhost:8787]
+// End-to-end check against a local server (`npm run db:local && npx cf dev`):
+//   node test/e2e.mjs [base URL, default http://localhost:5173]
 // The app adds a piece with a photo, an AI pairs and signs in, reads it, suggests tags and proposes
 // an outfit; the person tries it and reacts; the AI records a review; changes are undone.
 import assert from "node:assert/strict";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
-const base = process.argv[2] ?? "http://localhost:8787";
+const base = process.argv[2] ?? "http://localhost:5173";
 const accountId = randomUUID();
 const secret = randomBytes(32).toString("hex");
 const app = (path, init = {}) =>

@@ -1,8 +1,9 @@
 name: Deploy server
-# Deploys server/ to Cloudflare Workers when it changes on main, or on demand: applies new D1
-# migrations, then deploys the Worker. Needs repository secrets CLOUDFLARE_API_TOKEN (Workers
-# Scripts: Edit, D1: Edit) and CLOUDFLARE_ACCOUNT_ID. Without them the job explains what is missing
-# and stops; deploy from a computer instead (docs/architecture.md, "Deploying").
+# Deploys server/ to Cloudflare Workers with the cf CLI when it changes on main, or on demand:
+# applies new D1 migrations, then deploys the Worker. Needs repository secrets CLOUDFLARE_API_TOKEN
+# (Workers Scripts, D1, Workers KV Storage and Workers R2 Storage: Edit) and CLOUDFLARE_ACCOUNT_ID.
+# Without them the job explains what is missing and stops; deploy from a computer instead
+# (docs/architecture.md, "Deploying").
 on:
   push:
     branches: [main]
@@ -21,6 +22,7 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CF_SEND_TELEMETRY: "false"
     steps:
       - name: Check Cloudflare secrets
         id: secrets
@@ -44,5 +46,5 @@ jobs:
           npm ci
           npm run check
           npm test
-          npx wrangler d1 migrations apply putia --remote
-          npx wrangler deploy
+          npm run db:remote
+          npx cf deploy
