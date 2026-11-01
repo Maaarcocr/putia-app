@@ -44,7 +44,7 @@ Every write names the revision it was based on. If the person changed the record
 
 The `guidance` tool returns the whole candid menswear assessment skill in `docs/styling/` (judge the whole combination, name the smallest sufficient change, separate observation from preference, no scores or flattery), and the server's instructions tell the AI to read it before its first assessment. `server/src/guidance.ts` is generated from those files: after editing them, run `npm run sync-guidance` in `server/`. A unit test fails when the two drift.
 
-The instructions also ask the AI to get to know each piece: when a label, tag, barcode or product code is visible, or a note names the brand and model, it looks the exact product up online (if it can search the web), adds the listing's clearest photo (the piece alone on a plain or transparent background), suggests tags from it and comments with what it found. A listing shows the product as sold, not the person's piece, so its tags are still suggestions.
+The instructions also ask the AI to get to know each piece: when a label, tag, barcode or product code is visible, or a note names the brand and model, it looks the exact product up online (if it can search the web), adds the listing's clearest photo (the piece alone on a plain or transparent background), suggests tags from it and comments with what it found. A listing shows the product as sold, not the person's piece, so its tags are still suggestions. When the AI can't tell what a piece is, it asks the person for a photo of the label, care tag or barcode, or the brand and product name or code, in the chat or as a comment on the piece, a few pieces at a time.
 
 ## The app's API
 

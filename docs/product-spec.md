@@ -30,7 +30,7 @@ Each piece has:
 
 Tag review: pieces with unconfirmed suggestions are flagged; confirming is one tap, correcting is an edit. The AI can read photos of pieces that still need tags and suggest them.
 
-**Photos from the web.** Your photo is often a quick snapshot. When a label, tag, barcode or product code is visible (or you name the brand and model in a note), a connected AI can look the exact product up online and add the listing's clearest photo: the piece alone on a plain background. It appears under *From the web* with the page it came from. You can make it the piece's main photo, so outfits show the clean image, or delete it. It shows the product as sold, not your piece, so tags taken from the listing are still suggestions.
+**Photos from the web.** Your photo is often a quick snapshot. When a label, tag, barcode or product code is visible (or you name the brand and model in a note), a connected AI can look the exact product up online. When it can't tell what a piece is, it asks you for the label, barcode or product code, in the chat or as a comment on the piece. With the product identified, it adds the listing's clearest photo: the piece alone on a plain background. It appears under *From the web* with the page it came from. You can make it the piece's main photo, so outfits show the clean image, or delete it. It shows the product as sold, not your piece, so tags taken from the listing are still suggestions.
 
 ## 3. Outfit workbench
 
