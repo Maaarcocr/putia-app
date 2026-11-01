@@ -10,6 +10,7 @@ export default defineConfig({
 		// global_fetch_strictly_public: required by the OAuth library for Client ID Metadata Documents.
 		compatibilityFlags: ["nodejs_compat", "global_fetch_strictly_public"],
 		entrypoint: "src/index.ts",
+		domains: ["api.putia.app"],
 		observability: { enabled: true },
 		env: {
 			DB: bindings.d1({ name: "putia", id: "fe7c73d0-0a92-42de-8eec-5e4fbf1af5ab" }),

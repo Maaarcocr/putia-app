@@ -19,5 +19,5 @@ ios/Config/Signing.local.xcconfig
 # Server
 server/node_modules/
 server/.dev.vars
-server/.cloudflare/
+.cloudflare/
 server/*.log

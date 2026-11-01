@@ -63,6 +63,8 @@ Swift 6, SwiftUI with Observation, iOS 26+, iPhone only. XcodeGen generates the 
 
 The server runs on the owner's Cloudflare account and uses the `cf` CLI, never `wrangler`. The Worker and its bindings are in `server/cloudflare.config.ts`; `cf` builds it with Vite (`server/vite.config.ts`). The resources already exist: D1 `putia`, R2 `putia-photos` and KV `putia-oauth`. Their IDs are in `cloudflare.config.ts`, and the D1 ID is also in the `db:*` scripts in `package.json`.
 
+The Worker answers at `https://api.putia.app`, a custom domain (`domains` in `cloudflare.config.ts`) in the `putia.app` zone on the same account. The rest of that zone belongs to the Putìa storefront: its records are DNS-only, so the storefront keeps its own servers and certificates. The `workers.dev` address is off (`cf` turns it off when a Worker has a custom domain): Cloudflare's bot checks can refuse AI clients there (error 1010).
+
 After every server change, from `server/` (signed in with `cf auth login`):
 
 ```sh
