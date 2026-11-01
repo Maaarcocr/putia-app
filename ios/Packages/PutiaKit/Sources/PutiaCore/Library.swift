@@ -201,6 +201,11 @@ public struct Library: Codable, Equatable, Sendable {
         piece.heroPhotoId ?? piece.photoIds.first
     }
 
+    /// Photos of a piece's product that an AI found online, newest first.
+    public func webPhotos(of pieceId: String) -> [Record<Photo>] {
+        newestFirst(photos.values.filter { $0.value.ownerKind == .piece && $0.value.ownerId == pieceId && $0.value.source != nil })
+    }
+
     private func newestFirst<Value>(_ records: [Record<Value>]) -> [Record<Value>] {
         // Ties (same instant) fall back to the id, so the order never jumps between refreshes.
         records.sorted { ($0.updatedAt, $0.id) > ($1.updatedAt, $1.id) }

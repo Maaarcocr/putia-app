@@ -103,6 +103,26 @@ describe("what the AI may do", () => {
     await expect(create("wish", wish, AI)).rejects.toBeInstanceOf(RuleError);
   });
 
+  it("adds a product photo it found online to a piece, but none of the person's own photos", async () => {
+    const jacket = await create("piece", piece());
+    const photo = { ownerKind: "piece", ownerId: jacket.id, role: "flat", hasCutout: true, source: "https://shop.example/chore-jacket" };
+    const found = await store.write({ kind: "photo", id: newId(), actor: AI, baseRevision: 0, data: photo });
+    expect(found.doc.data).toEqual({ ...photo, hasCutout: false });
+    expect(found.doc.createdBy).toBe(AI);
+    await expect(store.write({ kind: "photo", id: found.doc.id, actor: AI, baseRevision: 1, data: photo })).rejects.toBeInstanceOf(RuleError);
+    const { source: _, ...ownPhoto } = photo;
+    await expect(store.write({ kind: "photo", id: newId(), actor: AI, baseRevision: 0, data: ownPhoto })).rejects.toThrow(/Only the person adds their own photos/);
+    await expect(store.write({ kind: "photo", id: newId(), actor: AI, baseRevision: 0, data: { ...photo, role: "worn" } })).rejects.toBeInstanceOf(RuleError);
+    // The person can make it the piece's main photo; the AI can't.
+    const main = await store.write({ kind: "piece", id: jacket.id, actor: "human", baseRevision: 1, data: piece({ heroPhotoId: found.doc.id }) });
+    expect(main.doc.data.heroPhotoId).toBe(found.doc.id);
+    const moved = await store.write({ kind: "piece", id: jacket.id, actor: AI, baseRevision: 2, data: piece() });
+    expect(moved.doc.data.heroPhotoId).toBe(found.doc.id);
+    // While it's the main photo, it can't be deleted or undone away.
+    await expect(store.remove("photo", found.doc.id, AI, 1)).rejects.toThrow(/main photo/);
+    await expect(store.undo(found.seq, AI)).rejects.toThrow(/main photo/);
+  });
+
   it("deletes only its own records", async () => {
     const jacket = await create("piece", piece());
     await expect(store.remove("piece", jacket.id, AI, 1)).rejects.toBeInstanceOf(RuleError);

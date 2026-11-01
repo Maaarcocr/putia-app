@@ -73,6 +73,12 @@ enum L10n {
     static var retire: String { String(localized: "piece.retire") }
     static var bringBack: String { String(localized: "piece.bringBack") }
     static var deletePieceTitle: String { String(localized: "piece.delete.title") }
+    static var webPhotos: String { String(localized: "piece.webPhotos") }
+    static var webPhotosFooter: String { String(localized: "piece.webPhotos.footer") }
+    static func foundBy(_ name: String) -> String { String(localized: "piece.webPhoto.foundBy \(name)") }
+    static var useAsMainPhoto: String { String(localized: "piece.webPhoto.useAsMain") }
+    static var useYourPhoto: String { String(localized: "piece.webPhoto.useYours") }
+    static var deleteWebPhotoTitle: String { String(localized: "piece.webPhoto.delete.title") }
 
     static func attribute(_ key: AttributeKey) -> String {
         switch key {

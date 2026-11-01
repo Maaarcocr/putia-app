@@ -30,7 +30,7 @@ The owner's most important rule: plain, standard, boring code, with the fewest m
 - **English and Italian.** Every user-facing string goes through `ios/App/Sources/Support/L10n.swift` with English and Italian in `Localizable.xcstrings`: UI text, accessibility labels, errors, and the server's sign-in page (`server/src/authorize.ts`). Use `FormatStyle` for dates and numbers. `scripts/check-strings.py` enforces the app side.
 - **The AI is outside the app.** Never add an AI model, API key or chat to the app.
 - **Honest evidence.** Anything an AI or the phone infers is a suggestion until the person confirms it. Material and fit are never shown as facts from a photo. The server enforces what an AI may change (`server/src/rules.ts`); keep the tool descriptions in `server/src/mcp.ts` truthful about it.
-- **Only the person** marks outfits tried or favourite, marks a shortlist entry bought or dismissed, adds photos and deletes what they made.
+- **Only the person** marks outfits tried or favourite, marks a shortlist entry bought or dismissed, adds their own photos and deletes what they made. An AI may add a photo of a piece's product that it found online, saved with its source; the person decides whether it becomes the main photo.
 - **Everything is attributed and undoable**, through the change log.
 - **Privacy.** No sign-up, analytics, crash reporting, ads or third-party SDKs. The privacy manifest declares exactly photos and user content, unlinked, for app functionality; `scripts/verify-ios-bundle.py` checks the built app.
 

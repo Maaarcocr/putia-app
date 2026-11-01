@@ -107,6 +107,21 @@ private let outfit = doc("outfit", outfitId, by: "agent:Claude", data: """
     #expect(library.decidedWishes.map(\.value.status) == [.bought])
 }
 
+@Test func findsPhotosAnAIFoundOnline() throws {
+    let webId = "00000000-0000-4000-8000-00000000000d"
+    let found = doc("photo", webId, by: "agent:Claude", data: """
+        {"ownerKind":"piece","ownerId":"\(jacketId)","role":"flat","hasCutout":false,"source":"https://shop.example/chore-jacket"}
+        """)
+    let own = doc("photo", "00000000-0000-4000-8000-00000000000e", data: """
+        {"ownerKind":"piece","ownerId":"\(jacketId)","role":"flat","hasCutout":true}
+        """)
+    var library = Library()
+    library.apply(try feed(3, [jacket, found, own]))
+    #expect(library.webPhotos(of: jacketId).map(\.id) == [webId], "the person's own photo isn't from the web")
+    #expect(library.webPhotos(of: jacketId).first?.value.source == "https://shop.example/chore-jacket")
+    #expect(library.webPhotos(of: trousersId).isEmpty)
+}
+
 @Test func decodesHistoryWithALabel() throws {
     let json = """
         [{"seq":7,"kind":"outfit","id":"\(outfitId)","revision":1,"op":"create","actor":"agent:Claude",

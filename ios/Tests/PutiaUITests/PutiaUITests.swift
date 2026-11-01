@@ -23,6 +23,14 @@ final class PutiaUITests: XCTestCase {
         confirm.tap()
         XCTAssertTrue(confirm.waitForNonExistence(timeout: 30), "the person confirms the suggestion")
 
+        // A photo of the same product that an AI found online: the person makes it the main photo.
+        let useAsMain = element(app, "piece.webPhoto.useAsMain")
+        app.swipeUp()
+        XCTAssertTrue(useAsMain.waitForExistence(timeout: 30))
+        capture("02b-web-photo")
+        useAsMain.tap()
+        XCTAssertTrue(useAsMain.waitForNonExistence(timeout: 30), "the photo from the web is now the main one")
+
         // The workbench: an AI's proposal, which the person marks tried.
         app.tabBars.buttons.element(boundBy: 1).tap()
         let card = element(app, "outfits.card")

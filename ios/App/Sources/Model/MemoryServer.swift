@@ -155,6 +155,10 @@ final class MemoryServer: Server {
             try? server.write(.piece(Piece(name: name, attrs: attrs, swatches: [Swatch(hex: hex)])), id: id, baseRevision: 0, actor: you)
         }
         try? server.write(
+            .photo(Photo(ownerKind: .piece, ownerId: knit, role: .flat, hasCutout: false, source: "https://shop.example/ecru-cable-knit")),
+            id: "00000000-0000-4000-8000-000000000050", baseRevision: 0, actor: claude, note: "Same style number as on the label"
+        )
+        try? server.write(
             .outfit(Outfit(
                 title: "Soft workwear",
                 items: [

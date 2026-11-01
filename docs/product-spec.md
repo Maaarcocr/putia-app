@@ -30,6 +30,8 @@ Each piece has:
 
 Tag review: pieces with unconfirmed suggestions are flagged; confirming is one tap, correcting is an edit. The AI can read photos of pieces that still need tags and suggest them.
 
+**Photos from the web.** Your photo is often a quick snapshot. When a label, tag, barcode or product code is visible (or you name the brand and model in a note), a connected AI can look the exact product up online and add the listing's clearest photo: the piece alone on a plain background. It appears under *From the web* with the page it came from. You can make it the piece's main photo, so outfits show the clean image, or delete it. It shows the product as sold, not your piece, so tags taken from the listing are still suggestions.
+
 ## 3. Outfit workbench
 
 An outfit is a set of pieces, each in a role (top, layer, trousers, shoes, accessory…), shown as large visual cards.
@@ -83,7 +85,7 @@ AI inside the app; marketplace, price tracking or purchasing; body measurements 
 Covers the full loop, thinly:
 
 1. Add a piece from a photo (cut-out and colours on device); correct or confirm tags.
-2. The AI reads the piece and its photo, suggests tags, and proposes outfits built from owned pieces.
+2. The AI reads the piece and its photo, looks up the product online and adds its photo, suggests tags, and proposes outfits built from owned pieces.
 3. You swap a piece, change the stage, react, comment and compare two versions.
 4. The AI records a shortlist entry or a "nothing needed" review; you see it in the app.
 5. History with undo.

@@ -80,6 +80,11 @@ export const PhotoData = z
     hasCutout: z.boolean(),
     width: z.number().int().min(1).max(10000).optional(),
     height: z.number().int().min(1).max(10000).optional(),
+    /**
+     * Where an AI found this photo of the piece's product online (the shop or brand page). The
+     * person's own photos have none. Kept as a field on "flat" photos so older apps still read it.
+     */
+    source: z.string().url().max(500).optional(),
   })
   .strict();
 

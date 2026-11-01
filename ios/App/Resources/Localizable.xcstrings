@@ -3184,6 +3184,102 @@
           }
         }
       }
+    },
+    "piece.webPhotos": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From the web"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dal web"
+          }
+        }
+      }
+    },
+    "piece.webPhotos.footer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photos of the same product that an AI found online, with the page they came from. They show the product as sold, not your piece: colour and fit can differ."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto dello stesso prodotto che un'IA ha trovato online, con la pagina da cui vengono. Mostrano il prodotto com'è in vendita, non il tuo capo: colore e vestibilità possono essere diversi."
+          }
+        }
+      }
+    },
+    "piece.webPhoto.foundBy %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Found by %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trovata da %@"
+          }
+        }
+      }
+    },
+    "piece.webPhoto.useAsMain": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use as main photo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usa come foto principale"
+          }
+        }
+      }
+    },
+    "piece.webPhoto.useYours": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use your photo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usa la tua foto"
+          }
+        }
+      }
+    },
+    "piece.webPhoto.delete.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete this photo?"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminare questa foto?"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -55,6 +55,18 @@ struct PieceView: View {
             } message: { key in
                 Text(L10n.attribute(key))
             }
+            let webPhotos = model.library.webPhotos(of: id)
+            if !webPhotos.isEmpty {
+                Section {
+                    ForEach(webPhotos) { photo in
+                        WebPhotoRow(photo: photo, piece: piece)
+                    }
+                } header: {
+                    Text(L10n.webPhotos)
+                } footer: {
+                    Text(L10n.webPhotosFooter)
+                }
+            }
             if !piece.value.swatches.isEmpty {
                 Section {
                     HStack {
@@ -139,6 +151,50 @@ struct PieceView: View {
         change(&value)
         guard value != piece.value else { return }
         Task { await model.save(.piece(value), id: id, revision: piece.revision) }
+    }
+}
+
+/// A photo of the piece's product that an AI found online: who found it and where, and the
+/// person's choices about it.
+private struct WebPhotoRow: View {
+    @Environment(AppModel.self) private var model
+    let photo: Record<Photo>
+    let piece: Record<Piece>
+    @State private var confirmingDelete = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            PhotoView(photoId: photo.id)
+                .frame(height: 180)
+            Text(L10n.foundBy(L10n.author(photo.createdBy)))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if let source = photo.value.source, let url = URL(string: source) {
+                Link(url.host() ?? source, destination: url)
+                    .font(.caption)
+            }
+            HStack {
+                if piece.value.heroPhotoId != photo.id {
+                    Button(L10n.useAsMainPhoto) { Task { await model.setMainPhoto(photo.id, of: piece.id) } }
+                        .accessibilityIdentifier("piece.webPhoto.useAsMain")
+                } else if !piece.value.photoIds.isEmpty {
+                    Button(L10n.useYourPhoto) { Task { await model.setMainPhoto(nil, of: piece.id) } }
+                        .accessibilityIdentifier("piece.webPhoto.useYours")
+                }
+                Spacer()
+                Button(L10n.delete, role: .destructive) { confirmingDelete = true }
+                    .accessibilityIdentifier("piece.webPhoto.delete")
+                    .alert(L10n.deleteWebPhotoTitle, isPresented: $confirmingDelete) {
+                        Button(L10n.delete, role: .destructive) { Task { await model.deleteWebPhoto(photo.id, of: piece.id) } }
+                        Button(L10n.cancel, role: .cancel) {}
+                    } message: {
+                        Text(L10n.deleteUndoable)
+                    }
+            }
+            // Separate tap targets inside one list row.
+            .buttonStyle(.borderless)
+        }
+        .padding(.vertical, 4)
     }
 }
 

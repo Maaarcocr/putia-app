@@ -6,17 +6,42 @@ import type { Env, Props } from "./env";
 import { describeError } from "./errors";
 import { STYLING_GUIDANCE } from "./guidance";
 import { type Kind, KINDS, schemas } from "./schema";
-import { type Doc, Store } from "./store";
+import { type Doc, Invalid, NotFound, Store } from "./store";
 
 // The tools an AI sees. It works on the same records as the app: everything it saves is
 // attributed to it, kept in the history and can be undone.
 
-const INSTRUCTIONS = `Putia is the user's wardrobe studio. You and the user work on the same saved records: the pieces they own, outfits (proposed → tried → favourite), inspiration images, a shortlist of possible additions, and reviews. Start with "overview". Everything you save is attributed to you, kept in history, and can be undone.
+const INSTRUCTIONS = `Putia is the user's wardrobe studio. You and the user work on the same saved records: the pieces they own, outfits (proposed → tried → favourite), inspiration images, a shortlist of possible additions, and reviews. Start with "overview". Before your first assessment or outfit, read "guidance": the assessment approach to follow here. Everything you save is attributed to you, kept in history, and can be undone.
 - Look at the photos ("get_photo") before judging a piece or outfit. A photo can't establish material, true colour, size or comfort: tags you set on pieces are saved as suggestions for the user to confirm.
+- Get to know each piece. The user's photos are often quick snapshots. When a label, tag, barcode or product code is visible, or a note names the brand and model, search the web for that exact product if you can: its listing shows details and states material, cut and fit that a snapshot can't. Add its clearest photo with "add_product_photo" (the piece alone on a plain or transparent background: no model, no other items), suggest tags from it, and comment on the piece with what you found and the link. Only when you're sure it's the same product: a listing shows the product as sold, not this piece's true colour, wear or alterations.
 - Propose outfits only from owned pieces, with the intended effect, silhouette and texture, and what a collage can't show. Only the user marks an outfit tried or favourite; their reactions and worn photos tell you what works.
 - Before suggesting a purchase, look for combinations of what they own. "Nothing needed" and "try a different combination" are valid conclusions: record them with "save_review". A shortlist entry names the problem it solves, the pieces it complements and the owned alternatives.
 - Judge whole combinations, name the smallest sufficient change, separate observation from preference. No scores, flattery or universal rules. Call "guidance" for the full assessment approach.
 - If a save reports a conflict, the user changed the record meanwhile: read it again and redo your change on top.`;
+
+const WEB_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_WEB_PHOTO_BYTES = 8_000_000;
+
+/**
+ * Downloads a product photo an AI found online. The Worker can reach only public addresses
+ * (the global_fetch_strictly_public flag in cloudflare.config.ts).
+ */
+async function download(url: string): Promise<{ bytes: ArrayBuffer; type: string }> {
+  if (!url.startsWith("https://")) throw new Invalid(["image_url must be an https address."]);
+  let response: Response;
+  try {
+    response = await fetch(url, { headers: { Accept: WEB_PHOTO_TYPES.join(", "), "User-Agent": "Putia/1.0 (+https://api.putia.app)" } });
+  } catch {
+    throw new Invalid([`Couldn't download ${url}. Try another image.`]);
+  }
+  if (!response.ok) throw new Invalid([`Downloading the image failed with HTTP ${response.status}. Try another image.`]);
+  const type = (response.headers.get("Content-Type") ?? "").split(";")[0].trim().toLowerCase();
+  if (!WEB_PHOTO_TYPES.includes(type)) throw new Invalid([`That address is ${type || "not an image"}: it must be a JPEG, PNG or WebP image.`]);
+  if (Number(response.headers.get("Content-Length") ?? 0) > MAX_WEB_PHOTO_BYTES) throw new Invalid(["The image is larger than 8 MB. Choose a smaller one."]);
+  const bytes = await response.arrayBuffer();
+  if (bytes.byteLength > MAX_WEB_PHOTO_BYTES) throw new Invalid(["The image is larger than 8 MB. Choose a smaller one."]);
+  return { bytes, type };
+}
 
 const text = (value: unknown, isError = false) => ({
   content: [{ type: "text" as const, text: typeof value === "string" ? value : JSON.stringify(value, null, 2) }],
@@ -60,7 +85,11 @@ export async function handleMcp(request: Request, env: Env, props: Props): Promi
 
   server.registerTool(
     "guidance",
-    { description: "The full outfit-assessment approach to follow when judging or proposing outfits.", inputSchema: z.object({}), annotations: { readOnlyHint: true } },
+    {
+      description: "The full outfit-assessment approach to follow when judging pieces or proposing outfits, with its principles and sources. Read it before your first assessment.",
+      inputSchema: z.object({}),
+      annotations: { readOnlyHint: true },
+    },
     async () => text(STYLING_GUIDANCE),
   );
 
@@ -110,7 +139,8 @@ export async function handleMcp(request: Request, env: Env, props: Props): Promi
   server.registerTool(
     "get",
     {
-      description: "One record with its comments and photo ids. For a piece, also the outfits it appears in.",
+      description:
+        "One record with its comments and photo ids. For a piece, also its photos (those with a source were found online) and the outfits it appears in.",
       inputSchema: z.object({ kind: z.enum(KINDS), id: z.string() }),
       annotations: { readOnlyHint: true },
     },
@@ -119,13 +149,12 @@ export async function handleMcp(request: Request, env: Env, props: Props): Promi
         const doc = await store.get(kind, id);
         if (!doc || doc.deleted) return `No ${kind} with id ${id}.`;
         const comments = (await store.list("comment")).filter((comment) => comment.data.subjectId === id).map(view);
-        const outfits =
-          kind === "piece"
-            ? (await store.list("outfit"))
-                .filter((outfit) => (outfit.data.items as { pieceId: string }[]).some((item) => item.pieceId === id))
-                .map((outfit) => ({ id: outfit.id, title: outfit.data.title, stage: outfit.data.stage }))
-            : undefined;
-        return { ...view(doc), comments, outfits };
+        if (kind !== "piece") return { ...view(doc), comments };
+        const photos = (await store.list("photo")).filter((photo) => photo.data.ownerKind === "piece" && photo.data.ownerId === id).map(view);
+        const outfits = (await store.list("outfit"))
+          .filter((outfit) => (outfit.data.items as { pieceId: string }[]).some((item) => item.pieceId === id))
+          .map((outfit) => ({ id: outfit.id, title: outfit.data.title, stage: outfit.data.stage }));
+        return { ...view(doc), comments, photos, outfits };
       }),
   );
 
@@ -144,6 +173,38 @@ export async function handleMcp(request: Request, env: Env, props: Props): Promi
       for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
       return { content: [{ type: "image" as const, data: btoa(binary), mimeType: object.httpMetadata?.contentType ?? "image/jpeg" }] };
     },
+  );
+
+  server.registerTool(
+    "add_product_photo",
+    {
+      description:
+        "Add a photo of a piece's exact product that you found online, from a shop or the brand. Pass the image's direct https address and the page it's on. Choose one with the piece alone on a plain or transparent background: no model, no other items. JPEG, PNG or WebP, up to 8 MB. It's saved with its source and shown in the app as a photo from the web; the user's own photos stay as they are, and the user can make it the piece's main photo or delete it.",
+      inputSchema: z.object({
+        piece_id: z.string(),
+        image_url: z.string().url().describe("The image file itself (https)"),
+        source_url: z.string().url().max(500).describe("The product page it's on"),
+        note: z.string().max(300).optional().describe("How you know it's the same product, in a sentence; shown in the user's history"),
+      }),
+    },
+    async ({ piece_id, image_url, source_url, note }) =>
+      attempt(async () => {
+        const piece = await store.get("piece", piece_id);
+        if (!piece || piece.deleted) throw new NotFound(`No piece with id ${piece_id}.`);
+        const image = await download(image_url);
+        const photoId = crypto.randomUUID();
+        // The same image serves as the thumbnail; the app shows either.
+        const keys = [photoKey(props.accountId, photoId, "full"), photoKey(props.accountId, photoId, "thumb")];
+        for (const key of keys) await env.PHOTOS.put(key, image.bytes, { httpMetadata: { contentType: image.type } });
+        try {
+          const data = { ownerKind: "piece", ownerId: piece_id, role: "flat", hasCutout: false, source: source_url };
+          const saved = await store.write({ kind: "photo", id: photoId, actor, baseRevision: 0, data, note });
+          return { saved: view(saved.doc), change: saved.seq };
+        } catch (error) {
+          await env.PHOTOS.delete(keys);
+          throw error;
+        }
+      }),
   );
 
   for (const kind of ["piece", "outfit", "reference", "wish", "review"] as const) {

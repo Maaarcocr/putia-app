@@ -105,7 +105,7 @@ const json = async (name, args) => JSON.parse((await call(name, args)).text);
 const init = await rpc("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "e2e", version: "1" } });
 assert.match(init.instructions, /wardrobe studio/);
 const tools = (await rpc("tools/list")).tools.map((tool) => tool.name).sort();
-assert.deepEqual(tools, ["comment", "delete", "get", "get_photo", "guidance", "history", "list", "overview",
+assert.deepEqual(tools, ["add_product_photo", "comment", "delete", "get", "get_photo", "guidance", "history", "list", "overview",
   "save_outfit", "save_piece", "save_reference", "save_review", "save_wish", "undo"]);
 assert.match((await call("guidance")).text, /Candid Menswear Assessment/);
 
@@ -126,6 +126,21 @@ const tagged = await json("save_piece", {
 });
 assert.equal(tagged.saved.attrs.material.state, "suggested", "AI tags are suggestions");
 assert.equal(tagged.saved.attrs.material.by, "agent:Test Agent");
+
+// The AI adds a photo of the product it found online (the app icon stands in for a shop's image).
+const repoFile = (path) => `https://raw.githubusercontent.com/Maaarcocr/putia-app/main/${path}`;
+const productPage = "https://github.com/Maaarcocr/putia-app";
+const found = await json("add_product_photo", {
+  piece_id: jacketId, image_url: repoFile("ios/App/Assets.xcassets/AppIcon.appiconset/AppIcon.png"), source_url: productPage,
+  note: "Same product code as on the label",
+});
+assert.equal(found.saved.source, productPage, JSON.stringify(found));
+assert.equal(found.saved.by, "agent:Test Agent");
+assert.equal((await call("get_photo", { photo_id: found.saved.id })).mimeType, "image/png");
+const jacketPhotos = (await json("get", { kind: "piece", id: jacketId })).photos;
+assert.deepEqual(jacketPhotos.map((photo) => photo.source ?? "the person's").sort(), [productPage, "the person's"].sort());
+assert.match((await call("add_product_photo", { piece_id: jacketId, image_url: repoFile("README.md"), source_url: productPage })).text,
+  /must be a JPEG, PNG or WebP/, "only images are saved");
 
 const proposal = await json("save_outfit", {
   note: "Built around the jacket",

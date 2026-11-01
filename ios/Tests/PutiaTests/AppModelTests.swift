@@ -65,6 +65,25 @@ private func makeModel(_ server: MemoryServer = MemoryServer()) -> AppModel {
     #expect(model.account != before)
 }
 
+@Test func aPhotoFromTheWebCanBeTheMainOneAndDeleted() async throws {
+    let server = MemoryServer()
+    let model = makeModel(server)
+    let pieceId = AppModel.newId(), ownId = AppModel.newId(), webId = AppModel.newId()
+    try server.write(.piece(Piece(name: "Jacket")), id: pieceId, baseRevision: 0, actor: "human")
+    try server.write(.photo(Photo(ownerKind: .piece, ownerId: pieceId, role: .flat, hasCutout: true)), id: ownId, baseRevision: 0, actor: "human")
+    try server.write(.piece(Piece(name: "Jacket", photoIds: [ownId], heroPhotoId: ownId)), id: pieceId, baseRevision: 1, actor: "human")
+    let source = "https://shop.example/chore-jacket"
+    try server.write(.photo(Photo(ownerKind: .piece, ownerId: pieceId, role: .flat, hasCutout: false, source: source)), id: webId, baseRevision: 0, actor: "agent:Claude")
+    await model.refresh()
+
+    await model.setMainPhoto(webId, of: pieceId)
+    #expect(model.library.pieces[pieceId]?.value.heroPhotoId == webId)
+    // Deleting it puts the person's own photo back as the main one.
+    #expect(await model.deleteWebPhoto(webId, of: pieceId))
+    #expect(model.library.pieces[pieceId]?.value.heroPhotoId == ownId)
+    #expect(model.library.webPhotos(of: pieceId).isEmpty)
+}
+
 @Test func describesProvenanceAndHistory() {
     #expect(L10n.provenance(Attribute(["wool"], state: .suggested, by: "agent:Claude")).contains("Claude"))
     #expect(L10n.author("human") == L10n.you)

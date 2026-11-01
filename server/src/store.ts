@@ -176,6 +176,7 @@ export class Store {
     if (!mayDelete(actor, current.createdBy)) {
       throw new RuleError("Only the person can delete things they made. You can delete your own proposals.");
     }
+    await this.checkNotMainPhoto(kind, id);
     const seq = await this.commit({
       kind,
       id,
@@ -203,6 +204,7 @@ export class Store {
     }
     // Undoing a create hides the record; undoing anything else restores the earlier state.
     const target: State = change.before ?? { deleted: true, data: change.after.data };
+    if (target.deleted) await this.checkNotMainPhoto(change.kind, change.id);
     const newSeq = await this.commit({
       kind: change.kind,
       id: change.id,
@@ -270,6 +272,14 @@ export class Store {
     await this.db.batch(
       ["docs", "changes", "agents", "pairings"].map((table) => this.db.prepare(`DELETE FROM ${table} WHERE account_id = ?`).bind(this.accountId)),
     );
+  }
+
+  /** A piece's main photo can't disappear from under it. */
+  private async checkNotMainPhoto(kind: Kind, id: string): Promise<void> {
+    if (kind !== "photo") return;
+    if ((await this.list("piece")).some((piece) => piece.data.heroPhotoId === id)) {
+      throw new Invalid(["This is a piece's main photo. Choose another main photo for the piece first."]);
+    }
   }
 
   private async checkReferences(kind: Kind, id: string, data: Data): Promise<void> {

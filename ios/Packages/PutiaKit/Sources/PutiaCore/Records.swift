@@ -225,14 +225,17 @@ public struct Photo: Codable, Equatable, Sendable {
     public var hasCutout: Bool
     public var width: Int?
     public var height: Int?
+    /// Where an AI found this photo of the piece's product online. Nil for the person's own photos.
+    public var source: String?
 
-    public init(ownerKind: Kind, ownerId: String, role: Role, hasCutout: Bool, width: Int? = nil, height: Int? = nil) {
+    public init(ownerKind: Kind, ownerId: String, role: Role, hasCutout: Bool, width: Int? = nil, height: Int? = nil, source: String? = nil) {
         self.ownerKind = ownerKind
         self.ownerId = ownerId
         self.role = role
         self.hasCutout = hasCutout
         self.width = width
         self.height = height
+        self.source = source
     }
 }
 

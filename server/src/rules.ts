@@ -90,8 +90,15 @@ function agentRules(kind: Kind, actor: Actor, before: Data | null, incoming: Dat
       data.wornOn = before?.wornOn ?? [];
       return data;
     }
-    case "photo":
-      throw new RuleError("Photos come from the app. Ask the person to add one.");
+    case "photo": {
+      // The person's photos come from the app. An AI may add a photo of a piece's product that it
+      // found online, saved with where it found it.
+      if (before) throw new RuleError("Photos can't be changed. Delete the one you added and add another.");
+      if (incoming.ownerKind !== "piece" || incoming.role !== "flat" || !incoming.source) {
+        throw new RuleError("Only the person adds their own photos. You can add a product photo you found online with add_product_photo.");
+      }
+      return { ...data, hasCutout: false };
+    }
     case "comment": {
       if (before) throw new RuleError("Comments can't be edited. Delete it and write a new one.");
       data.by = actor;

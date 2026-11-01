@@ -19,9 +19,10 @@ The tools (`server/src/mcp.ts`):
 | Tool | Does |
 | --- | --- |
 | `overview` | Counts, pieces whose tags need review, outfits by stage, the shortlist, the latest changes |
-| `guidance` | The full outfit-assessment approach (from `docs/styling/`) |
-| `list`, `get` | Records of one kind; one record with its comments (and, for a piece, its outfits) |
+| `guidance` | The whole styling skill from `docs/styling/`: the assessment approach, its principles and its sources |
+| `list`, `get` | Records of one kind; one record with its comments (and, for a piece, its photos and outfits) |
 | `get_photo` | A photo as an image: the cut-out thumbnail or the full photo |
+| `add_product_photo` | A photo of a piece's exact product that the AI found online: it passes the image's address and the page it's on, and the server downloads it |
 | `save_piece`, `save_outfit`, `save_reference`, `save_wish`, `save_review` | Create or update, passing the revision it read |
 | `comment` | A comment, or an `assessment` of an outfit |
 | `delete` | Only records the AI created |
@@ -30,6 +31,7 @@ The tools (`server/src/mcp.ts`):
 The server enforces what an AI may change (`server/src/rules.ts`), whatever the tool descriptions say:
 
 - **Tags are suggestions.** Every tag an AI sets is saved as `suggested` and attributed to it. It can't change a value the person confirmed (it can comment instead). It can't change photos, notes, measured colours or a piece's status, and can name only an unnamed piece.
+- **The person's photos are theirs.** An AI can't add, change or remove them. It can add a photo of a piece's product that it found online: the server downloads it (JPEG, PNG or WebP, up to 8 MB, from public https addresses only) and saves it as a `flat` photo of that piece with its `source` page. The app shows it under *From the web*, where the person can make it the piece's main photo or delete it. A piece's main photo can't be deleted or undone away until another photo is the main one.
 - **Outfits start as proposals.** An AI creates `proposed` outfits; only the person marks them tried or favourite. Days worn and mirror photos are the person's.
 - **Inspiration is the person's.** An AI only writes a reference's *translation*: which owned pieces carry the same relationship.
 - **Purchases are the person's call.** An AI can add or update shortlist entries, but can't mark one dismissed or bought, nor change it after the person decided.
@@ -40,7 +42,9 @@ Every write names the revision it was based on. If the person changed the record
 
 ## Styling guidance
 
-The `guidance` tool and the server's instructions carry the candid menswear assessment approach in `docs/styling/` (judge the whole combination, name the smallest sufficient change, separate observation from preference, no scores or flattery). `server/src/guidance.ts` is generated from those files: after editing them, run `npm run sync-guidance` in `server/`. A unit test fails when the two drift.
+The `guidance` tool returns the whole candid menswear assessment skill in `docs/styling/` (judge the whole combination, name the smallest sufficient change, separate observation from preference, no scores or flattery), and the server's instructions tell the AI to read it before its first assessment. `server/src/guidance.ts` is generated from those files: after editing them, run `npm run sync-guidance` in `server/`. A unit test fails when the two drift.
+
+The instructions also ask the AI to get to know each piece: when a label, tag, barcode or product code is visible, or a note names the brand and model, it looks the exact product up online (if it can search the web), adds the listing's clearest photo (the piece alone on a plain or transparent background), suggests tags from it and comments with what it found. A listing shows the product as sold, not the person's piece, so its tags are still suggestions.
 
 ## The app's API
 

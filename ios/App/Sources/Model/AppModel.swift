@@ -222,6 +222,26 @@ final class AppModel {
         return await save(.photo(photo), id: photoId, revision: 0)?.id
     }
 
+    /// Makes a photo the piece's main one, or puts the person's own photo back when nil.
+    func setMainPhoto(_ photoId: String?, of pieceId: String) async {
+        guard let piece = library.pieces[pieceId] else { return }
+        var value = piece.value
+        value.heroPhotoId = photoId ?? value.photoIds.first
+        await save(.piece(value), id: pieceId, revision: piece.revision)
+    }
+
+    /// Deletes a photo an AI found online. If it is the piece's main photo, the person's own photo
+    /// becomes the main one first. Returns whether it was deleted.
+    @discardableResult
+    func deleteWebPhoto(_ photoId: String, of pieceId: String) async -> Bool {
+        if library.pieces[pieceId]?.value.heroPhotoId == photoId {
+            await setMainPhoto(nil, of: pieceId)
+            guard library.pieces[pieceId]?.value.heroPhotoId != photoId else { return false }
+        }
+        guard let photo = library.photos[photoId] else { return false }
+        return await delete(.photo, id: photoId, revision: photo.revision)
+    }
+
     /// A photo, from memory, the disk cache or the server.
     func image(_ photoId: String, size: PhotoSize) async -> UIImage? {
         let key = "\(photoId)-\(size.rawValue)"
