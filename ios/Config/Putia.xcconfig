@@ -1,0 +1,19 @@
+// App target signing, Debug and Release. project.yml points the app target's signing settings
+// at these PUTIA_* variables, so they apply to the app target only.
+//
+// Local development: automatic signing with the placeholder bundle ID.
+PUTIA_APP_BUNDLE_ID = dev.putia.app
+PUTIA_CODE_SIGN_STYLE = Automatic
+PUTIA_CODE_SIGN_IDENTITY = Apple Development
+PUTIA_DEVELOPMENT_TEAM =
+PUTIA_PROVISIONING_PROFILE =
+PUTIA_OTHER_CODE_SIGN_FLAGS =
+
+// The server (server/), as a host name only (xcconfig treats "//" as a comment). The app keeps
+// the shared records there, and AI connect to it at https://<host>/mcp. See docs/connector.md.
+PUTIA_SERVER_HOST = putia.marcocr.workers.dev
+
+// The TestFlight workflow writes this file just before archiving and deletes it afterwards.
+// Passing signing settings on the xcodebuild command line instead would also apply them to the
+// Swift package targets, which cannot use a provisioning profile.
+#include? "Signing.local.xcconfig"

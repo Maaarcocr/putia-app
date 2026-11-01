@@ -1,0 +1,24 @@
+# Generated Xcode project and build products
+ios/Putia.xcodeproj/
+ios/DerivedData*/
+ios/build/
+*.xcresult
+.build/
+.swiftpm/
+xcuserdata/
+.DS_Store
+
+# Signing material and generated signing config
+*.p12
+*.p8
+*.mobileprovision
+*.key.pem
+*.certSigningRequest
+ios/Config/Signing.local.xcconfig
+
+# Server
+server/node_modules/
+server/.wrangler/
+server/.dev.vars
+server/.cloudflare/
+server/*.log

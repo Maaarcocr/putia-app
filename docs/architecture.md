@@ -1,0 +1,82 @@
+# Architecture
+
+Putia is two parts: an iPhone app and a small server. The server holds the shared records; the app and any AI the person connects both read and write them. There is no AI in either.
+
+```
+iPhone app ──HTTPS /v1/accounts/:id/…──▶  Cloudflare Worker  ◀──MCP /mcp (OAuth)── the person's AI
+ (SwiftUI)                                 D1: records + change log
+                                           R2: photos
+                                           KV: OAuth grants
+```
+
+## Records
+
+Everything on the bench is a record of one of seven kinds: `piece`, `outfit`, `photo`, `comment`, `reference` (inspiration), `wish` (shortlist entry) and `review` (a conclusion about what's missing). Their shapes are defined once on the server (`server/src/schema.ts`, zod) and mirrored in Swift (`ios/Packages/PutiaKit/Sources/PutiaCore/Records.swift`). Change both together.
+
+The server stores each record as JSON in one generic table, `docs`, with a **revision**. Every write:
+
+1. names the revision it was based on (0 to create). A stale revision is refused with 409 and the current record, so nobody overwrites a change they haven't seen;
+2. is validated (shape, and that the records it points at exist);
+3. passes the rules for who wrote it (`server/src/rules.ts`): the person (`human`) or an AI (`agent:<name>`). AI tags become suggestions, AI outfits start as proposals, and so on (docs/connector.md);
+4. is recorded in `changes` with the state before and after, the author and an optional note, in the same D1 batch.
+
+`changes` is at once the history, the source for undo (put back the `before` state, if the record hasn't changed since) and the app's sync feed (`GET changes?since=N` returns every record touched after change N).
+
+Deleting keeps a tombstone, so a delete can be undone too.
+
+## Server (`server/`)
+
+TypeScript on Cloudflare Workers. No framework.
+
+| File | Does |
+| --- | --- |
+| `src/index.ts` | Routing: the OAuth provider wraps everything; `/mcp` is the protected API, the rest goes to the default handler |
+| `src/app-api.ts` | The app's API under `/v1/accounts/:id/` (bearer secret) |
+| `src/mcp.ts` | The MCP tools an AI sees, and their instructions |
+| `src/store.ts` | Records, revisions, the change log, undo and the feed |
+| `src/schema.ts`, `src/rules.ts` | What a record may contain; who may change what |
+| `src/accounts.ts` | Accounts (claimed by the first request with a secret), pairing codes, connected AIs |
+| `src/authorize.ts` | The sign-in page an AI opens: asks for the pairing code (English or Italian) |
+| `src/guidance.ts` | Generated from `docs/styling/` by `npm run sync-guidance` |
+
+Tests: `test/store.test.ts` and `test/guidance.test.ts` run with vitest on Node's built-in SQLite standing in for D1 (`test/d1.ts`), so the real SQL runs. `test/e2e.mjs` drives a local Worker through the whole loop: the app adds a piece and photo, an AI pairs, signs in, suggests tags and proposes an outfit, the person tries it and reacts, the AI records a review, both sides undo, and disconnecting and deleting cut everything off.
+
+## App (`ios/`)
+
+Swift 6, SwiftUI with Observation, iOS 26+, iPhone only. XcodeGen generates the project from `ios/project.yml`.
+
+- **`PutiaCore`** (Foundation only, builds and tests on Linux): the record types, `Library` (every record, as last loaded, with what the screens ask of it), `Change` and colour measurement (`Swatches`).
+- **`PutiaImaging`** (Apple platforms): the cut-out (Vision's foreground mask), thumbnails, colours from the cut-out and a category guess (Vision's classifier), all on the phone and off the main actor.
+- **The app target**: `AppModel` (the one observable model), the server client (`HTTPServer`, and `MemoryServer` for tests and UI tests), the Keychain account, and the screens. App code defaults to the main actor.
+
+**Online first.** The app shows the `Library` it last loaded (cached as JSON on disk, photos too) and refreshes every 15 seconds while open, when it becomes active and on pull to refresh. Every change goes straight to the server; if it can't be saved, an alert says why: no connection, or someone (the AI) changed the record first, in which case the app shows the latest version so the person can redo their change. There is no offline queue.
+
+**The account** is a random id and secret made on the phone and kept in the Keychain (synced by iCloud Keychain). No sign-up. "Delete everything" deletes it on the server with all records and photos, and starts a new one.
+
+**Adding a piece**: pick a photo → `Imaging.prepare` (cut-out, thumbnail, colours, category guess) → save the piece with the phone's suggestions (`by: "device"`, state `suggested`) → upload the photo → save the photo record → point the piece at it. Material and cut are never guessed.
+
+**Strings**: every user-facing string is in `Support/L10n.swift`, with English and Italian in `Resources/Localizable.xcstrings`. `scripts/check-strings.py` fails CI on a missing translation, an unused key, or a raw literal in a SwiftUI text API.
+
+**Tests**: `PutiaCoreTests` (decoding the server's JSON, the library, encoding, swaps, colours), `PutiaImagingTests`, `PutiaTests` (the app model against `MemoryServer`: saving, conflicts, undo, offline, deleting) and `PutiaUITests` (the main flow on a sample wardrobe, with screenshots), in English and Italian.
+
+## Deploying
+
+The server runs on the owner's Cloudflare account. Once, from `server/`:
+
+```sh
+npx wrangler login
+npx wrangler d1 create putia             # paste the database_id into wrangler.jsonc
+npx wrangler r2 bucket create putia-photos
+npx wrangler kv namespace create putia-oauth   # paste the id into wrangler.jsonc
+```
+
+Then, and after every server change:
+
+```sh
+npx wrangler d1 migrations apply putia --remote
+npx wrangler deploy
+```
+
+`.github/workflows/server.yml` does the second part on every change to `server/` on `main`, once the repository has the secrets `CLOUDFLARE_API_TOKEN` (Workers Scripts: Edit, D1: Edit) and `CLOUDFLARE_ACCOUNT_ID`.
+
+The app reads the server's host from `PUTIA_SERVER_HOST` in `ios/Config/Putia.xcconfig`.

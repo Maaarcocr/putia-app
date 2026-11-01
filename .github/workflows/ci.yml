@@ -1,0 +1,108 @@
+name: Verify
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  pipeline:
+    name: Release pipeline safety tests (offline, no credentials)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shell syntax
+        run: bash -n scripts/*.sh
+      - name: Signing, upload and bundle-rule tests with fake Apple tools
+        run: python3 -m unittest discover -s scripts -p 'test_testflight_ci.py' -v
+      - name: String catalogs complete in English and Italian
+        run: python3 scripts/check-strings.py
+  server:
+    name: Server tests (local Worker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - name: Type check
+        run: npm run check
+      - name: Unit tests
+        run: npm test
+      - name: End-to-end against a local Worker (records, photos, pairing, OAuth, MCP tools, undo)
+        run: |
+          npm run db:local
+          npx wrangler dev --port 8787 > wrangler.log 2>&1 &
+          for attempt in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8787/ && break; sleep 1; done
+          node test/e2e.mjs http://127.0.0.1:8787 || { tail -50 wrangler.log; exit 1; }
+  core:
+    name: Core tests (Linux)
+    needs: pipeline
+    runs-on: ubuntu-latest
+    container: swift:6.2
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test PutiaCore
+        run: swift test --package-path ios/Packages/PutiaKit
+  ios:
+    name: Native build and tests (en + it)
+    needs: pipeline
+    runs-on: macos-26
+    timeout-minutes: 50
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tool versions and project generator
+        run: |
+          xcodebuild -version
+          brew install xcodegen
+          xcodegen --version
+          xcrun simctl list devices available
+      - name: Inspect manual TestFlight CLI compatibility (no credentials)
+        run: ./scripts/check-testflight-tools.sh
+      - name: Package tests (core + imaging)
+        run: swift test --package-path ios/Packages/PutiaKit
+      - name: Build Release for a real iOS device (unsigned) and check bundle rules
+        run: |
+          (cd ios && xcodegen generate)
+          xcodebuild build -project ios/Putia.xcodeproj -scheme Putia \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -derivedDataPath ios/DerivedData-Release CODE_SIGNING_ALLOWED=NO
+          python3 scripts/verify-ios-bundle.py ios/DerivedData-Release/Build/Products/Release-iphoneos/Putia.app
+      - name: Run native unit and UI tests in English and Italian
+        run: ./scripts/test-ios.sh
+      - name: Export UI test screenshots
+        if: always()
+        run: |
+          mkdir -p ios/build/screenshots
+          for result in ios/build/*.xcresult; do
+            [[ -e "$result" ]] || continue
+            name="$(basename "$result" .xcresult)"
+            xcrun xcresulttool export attachments --path "$result" --output-path "ios/build/screenshots/$name" || true
+          done
+      - name: Save UI test screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-screenshots
+          path: ios/build/screenshots
+          if-no-files-found: warn
+      - name: Save Xcode test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-test-results
+          path: ios/build/*.xcresult
+          if-no-files-found: warn

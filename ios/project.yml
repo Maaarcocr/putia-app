@@ -1,0 +1,117 @@
+# XcodeGen spec. Generate the project with `xcodegen generate` (the .xcodeproj is never committed).
+name: Putia
+
+options:
+  developmentLanguage: en
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+    SWIFT_EMIT_LOC_STRINGS: NO
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+  configs:
+    Debug:
+      DEAD_CODE_STRIPPING: NO
+
+packages:
+  PutiaKit:
+    path: Packages/PutiaKit
+
+targets:
+  Putia:
+    type: application
+    platform: iOS
+    sources:
+      - path: App/Sources
+      - path: App/Resources
+      - path: App/Assets.xcassets
+      - path: App/PrivacyInfo.xcprivacy
+        buildPhase: resources
+    dependencies:
+      - package: PutiaKit
+        product: PutiaCore
+      - package: PutiaKit
+        product: PutiaImaging
+    configFiles:
+      Debug: Config/Putia.xcconfig
+      Release: Config/Putia.xcconfig
+    settings:
+      base:
+        PRODUCT_NAME: Putia
+        # Signing lives in Config/Putia.xcconfig so the TestFlight workflow can set it for this
+        # target only. Set explicitly here so XcodeGen's presets cannot override it.
+        PRODUCT_BUNDLE_IDENTIFIER: $(PUTIA_APP_BUNDLE_ID)
+        CODE_SIGN_STYLE: $(PUTIA_CODE_SIGN_STYLE)
+        CODE_SIGN_IDENTITY: $(PUTIA_CODE_SIGN_IDENTITY)
+        "CODE_SIGN_IDENTITY[sdk=iphoneos*]": $(PUTIA_CODE_SIGN_IDENTITY)
+        DEVELOPMENT_TEAM: $(PUTIA_DEVELOPMENT_TEAM)
+        PROVISIONING_PROFILE_SPECIFIER: $(PUTIA_PROVISIONING_PROFILE)
+        OTHER_CODE_SIGN_FLAGS: $(PUTIA_OTHER_CODE_SIGN_FLAGS)
+        INFOPLIST_FILE: App/Info.plist
+        # iPhone only. Set on the target because XcodeGen's app preset defaults to "1,2".
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_APPROACHABLE_CONCURRENCY: YES
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+
+  PutiaTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/PutiaTests
+    dependencies:
+      - target: Putia
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.putia.app.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Putia.app/Putia"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_APPROACHABLE_CONCURRENCY: YES
+
+  PutiaUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: Tests/PutiaUITests
+    dependencies:
+      - target: Putia
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.putia.app.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Putia
+        CODE_SIGN_STYLE: Automatic
+
+schemes:
+  Putia:
+    build:
+      targets:
+        Putia: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - PutiaTests
+        - PutiaUITests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

@@ -1,0 +1,795 @@
+"""Offline safety tests; never invoke real Apple tools or use signing credentials.
+
+Run with ``python3 -m unittest discover -s scripts -p 'test_testflight_ci.py'``.
+The integration harness executes the real shell/Python orchestration in a copied
+temporary repository. Every Apple/build/signing command is a fake executable;
+its certificate, key, profile, app and IPA are deliberately synthetic fixtures.
+Passing these tests does not establish Apple signing, upload or device success.
+"""
+
+import base64
+import datetime as dt
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path
+import plistlib
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from unittest.mock import patch
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT = ROOT / "scripts/testflight-ci.sh"
+WORKFLOW = ROOT / ".github/workflows/testflight.yml"
+BASH = shutil.which("bash")
+TEAM = "ABCDEFGHIJ"
+BUNDLE = "com.example.putia"
+UUID = "12345678-1234-1234-1234-123456789ABC"
+EXTENSION_UUID = "87654321-4321-4321-4321-CBA987654321"
+
+
+def declared_data():
+    """The privacy manifest's collected data, as scripts/verify-ios-bundle.py requires it."""
+    return [{"NSPrivacyCollectedDataType": kind, "NSPrivacyCollectedDataTypeLinked": False,
+             "NSPrivacyCollectedDataTypeTracking": False,
+             "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]}
+            for kind in ("NSPrivacyCollectedDataTypePhotosorVideos", "NSPrivacyCollectedDataTypeOtherUserContent")]
+CERTIFICATE = b"FAKE-CERTIFICATE-NOT-DER-NO-PRIVATE-KEY"
+FINGERPRINT = hashlib.sha1(CERTIFICATE).hexdigest().upper()
+TOOL_OUTPUT = "PRIVATE-TOOL-DIAGNOSTIC-MUST-NOT-REACH-OUTPUT"
+CONFIG = {
+    "PUTIA_TEAM_ID": TEAM,
+    "PUTIA_BUNDLE_ID": BUNDLE,
+}
+spec = importlib.util.spec_from_file_location("testflight_signing", ROOT / "scripts/testflight-signing.py")
+signing = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(signing)
+
+
+def profile_fixture(bundle=BUNDLE, uuid=UUID):
+    return {
+        "UUID": uuid,
+        "Name": "Synthetic App Store profile",
+        "ExpirationDate": dt.datetime.now(dt.timezone.utc).replace(tzinfo=None) + dt.timedelta(days=30),
+        "TeamIdentifier": [TEAM],
+        "ApplicationIdentifierPrefix": [TEAM],
+        "Platform": ["iOS"],
+        "DeveloperCertificates": [CERTIFICATE],
+        "Entitlements": {
+            "application-identifier": f"{TEAM}.{bundle}",
+            "com.apple.developer.team-identifier": TEAM,
+            "get-task-allow": False,
+            "beta-reports-active": True,
+        },
+    }
+
+
+# This runs under an absolute Python interpreter. There is no fallback to a real
+# Apple command: PATH contains only these fakes and explicitly allowed utilities.
+FAKE_TOOL = r'''
+import hashlib, json, os, pathlib, plistlib, shlex, sys, zipfile
+name = pathlib.Path(sys.argv[0]).name
+args = sys.argv[1:]
+root = pathlib.Path(os.environ["FAKE_ROOT"])
+with (root / "calls.jsonl").open("a") as output:
+    output.write(json.dumps([name, *args]) + "\n")
+profile_bytes = (root / "fixture.plist").read_bytes()
+profile = plistlib.loads(profile_bytes)
+certificate = profile["DeveloperCertificates"][0]
+fingerprint = hashlib.sha1(certificate).hexdigest().upper()
+marker = "PRIVATE-TOOL-DIAGNOSTIC-MUST-NOT-REACH-OUTPUT"
+stage = name + (":" + args[0] if args else "")
+if name == "xcrun" and "--upload-app" in args:
+    stage = "xcrun:upload"
+if os.environ.get("FAKE_FAIL_AT") == stage:
+    print(marker, file=sys.stderr)
+    sys.exit(42)
+
+def value(flag):
+    return args[args.index(flag) + 1]
+
+def make_app(app):
+    app.mkdir(parents=True)
+    info = {
+        "CFBundleExecutable": "Putia", "UIDeviceFamily": [1],
+        "CFBundleIcons": {"CFBundlePrimaryIcon": {"CFBundleIconName": "AppIcon"}},
+        "CFBundleIdentifier": os.environ["PUTIA_BUNDLE_ID"],
+        "CFBundleVersion": os.environ["FAKE_BUILD_NUMBER"],
+        "CFBundleShortVersionString": "0.1.0",
+        "CFBundleSupportedPlatforms": ["iPhoneOS"],
+        "ITSAppUsesNonExemptEncryption": False,
+    }
+    (app / "Info.plist").write_bytes(plistlib.dumps(info))
+    (app / "Putia").write_bytes(b"synthetic release executable")
+    (app / "Assets.car").write_bytes(b"synthetic compiled assets")
+    (app / "PrivacyInfo.xcprivacy").write_bytes(plistlib.dumps({"NSPrivacyTracking": False, "NSPrivacyCollectedDataTypes": [
+        {"NSPrivacyCollectedDataType": kind, "NSPrivacyCollectedDataTypeLinked": False,
+         "NSPrivacyCollectedDataTypeTracking": False,
+         "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]}
+        for kind in ("NSPrivacyCollectedDataTypePhotosorVideos", "NSPrivacyCollectedDataTypeOtherUserContent")]}))
+    for language in ("en", "it"):
+        (app / (language + ".lproj")).mkdir()
+        (app / (language + ".lproj") / "Localizable.strings").write_bytes(b"synthetic strings")
+    (app / "embedded.mobileprovision").write_bytes(profile_bytes)
+
+if name == "uname":
+    print("Darwin")
+elif name == "git":
+    assert args == ["rev-parse", "HEAD"]
+    print("a" * 40)
+elif name == "openssl":
+    if args == ["rand", "-hex", "32"]:
+        print("1" * 64)
+    else:
+        assert args[0] == "pkey" and "-check" in args and "-noout" in args
+        assert pathlib.Path(value("-in")).read_bytes() == b"FAKE-API-PRIVATE-KEY-NOT-A-KEY"
+        print(marker)
+elif name == "security":
+    if args[0] == "cms":
+        sys.stdout.buffer.write(pathlib.Path(value("-i")).read_bytes())
+    elif args[0] == "create-keychain":
+        pathlib.Path(args[-1]).write_text("fake keychain")
+        state = root / "keychains.json"
+        state.write_text(json.dumps([args[-1], *json.loads(state.read_text())]))
+        print(marker)
+    elif args[0] == "find-identity":
+        print(f'  1) {fingerprint} "Apple Distribution: Test Fixture ({os.environ["PUTIA_TEAM_ID"]})"')
+    elif args[0] == "list-keychains":
+        state = root / "keychains.json"
+        if "-s" in args:
+            state.write_text(json.dumps(args[args.index("-s") + 1:]))
+        else:
+            for path in json.loads(state.read_text()):
+                print("    " + json.dumps(path))
+    elif args[0] == "delete-keychain":
+        pathlib.Path(args[-1]).unlink()
+    else:
+        assert args[0] in ["set-keychain-settings", "unlock-keychain", "import", "set-key-partition-list"]
+        print(marker)
+elif name == "xcodegen":
+    assert args == ["generate"]
+    print(marker)
+elif name == "xcodebuild":
+    if args == ["-version"]:
+        print("Xcode 26.6\nBuild version SYNTHETIC")
+    elif args[0] == "archive":
+        # Record the app-target signing settings exactly as the archive would read them.
+        settings = pathlib.Path(value("-project")).parent / "Config" / "Signing.local.xcconfig"
+        (root / "archive-signing.xcconfig").write_text(settings.read_text())
+        make_app(pathlib.Path(value("-archivePath")) / "Products/Applications/Putia.app")
+        print(marker)
+    else:
+        assert args[0] == "-exportArchive"
+        options = plistlib.loads(pathlib.Path(value("-exportOptionsPlist")).read_bytes())
+        (root / "export-options.json").write_text(json.dumps(options))
+        assert options["destination"] == "export" and options["signingStyle"] == "manual"
+        source = pathlib.Path(value("-archivePath")) / "Products/Applications"
+        export = pathlib.Path(value("-exportPath"))
+        export.mkdir()
+        with zipfile.ZipFile(export / "Putia.ipa", "w") as ipa:
+            for item in source.rglob("*"):
+                if item.is_file():
+                    ipa.write(item, "Payload/" + str(item.relative_to(source)))
+        print(marker)
+elif name == "codesign":
+    extract = [arg for arg in args if arg.startswith("--extract-certificates")]
+    if "--entitlements" in args:
+        # Current codesign prints DER unless asked for XML.
+        assert value("--entitlements") == "-" and "--xml" in args
+        sys.stdout.buffer.write(plistlib.dumps(profile["Entitlements"]))
+    elif "--verbose=4" in args:
+        print("TeamIdentifier=" + os.environ["PUTIA_TEAM_ID"])
+    elif extract:
+        # The prefix must share a token with the flag; a separate token would be read as a code path.
+        assert extract[0].startswith("--extract-certificates=")
+        pathlib.Path(extract[0].split("=", 1)[1] + "0").write_bytes(certificate)
+        print(marker)
+    else:
+        assert args[:3] == ["--verify", "--deep", "--strict"]
+        print(marker)
+elif name == "ditto":
+    assert args[:2] == ["-x", "-k"]
+    with zipfile.ZipFile(args[2]) as ipa:
+        ipa.extractall(args[3])
+    print(marker)
+elif name == "xcrun":
+    if args == ["--sdk", "iphoneos", "--show-sdk-version"]:
+        print("26.6")
+    elif args == ["altool", "--help"]:
+        style = os.environ.get("FAKE_ALTOOL_STYLE", "legacy")
+        print({"legacy": "--upload-app --apiKey --apiIssuer",
+               "current": "--upload-app --api-key --api-issuer --platform",
+               "unsupported": "--unrecognized-cli"}[style])
+    else:
+        assert args[:2] == ["altool", "--upload-app"]
+        if os.environ.get("FAKE_ALTOOL_ERROR"):
+            print(json.dumps({"product-errors": [{"message": "ERROR ITMS-90683: Missing purpose string in Info.plist "
+                                                         + marker}]}))
+            sys.exit(1)
+        key_flag = "--api-key" if os.environ.get("FAKE_ALTOOL_STYLE") == "current" else "--apiKey"
+        key = pathlib.Path("private_keys") / ("AuthKey_" + value(key_flag) + ".p8")
+        assert key.read_bytes() == b"FAKE-API-PRIVATE-KEY-NOT-A-KEY"
+        assert pathlib.Path(value("-f")).is_file()
+        print(marker)
+else:
+    raise AssertionError("Unexpected fake command: " + name)
+'''
+
+
+class OfflineRunner:
+    """A hermetic temporary HOME, repository, PATH and mocked Apple toolchain."""
+
+    def __init__(self, path):
+        self.root = Path(path)
+        self.repo = self.root / "repo"
+        scripts = self.repo / "scripts"
+        scripts.mkdir(parents=True)
+        (self.repo / "ios").mkdir()
+        (self.repo / "ios/project.yml").write_text("name: Putia\n")
+        for name in ("testflight-ci.sh", "testflight-signing.py", "validate-archive-config.py", "verify-ios-bundle.py",
+                     "archive-diagnostics.py"):
+            shutil.copy2(ROOT / "scripts" / name, scripts / name)
+        self.home = self.root / "home"
+        self.temp = self.root / "runner-temp"
+        self.bin = self.root / "bin"
+        for folder in (self.home, self.temp, self.bin):
+            folder.mkdir()
+        self.profile_dir = self.home / "Library/Developer/Xcode/UserData/Provisioning Profiles"
+        self.profile_dir.mkdir(parents=True)
+        (self.profile_dir / "unrelated.mobileprovision").write_text("preserve unrelated profile")
+        self.original_keychains = [str(self.home / "Library/Keychains/login.keychain-db"),
+                                   str(self.home / "Library/Keychains/a keychain with spaces.keychain-db")]
+        for path in self.original_keychains:
+            Path(path).parent.mkdir(parents=True, exist_ok=True)
+            Path(path).write_text("preserve original keychain")
+        (self.root / "keychains.json").write_text(json.dumps(self.original_keychains))
+        profile = plistlib.dumps(profile_fixture())
+        (self.root / "fixture.plist").write_bytes(profile)
+        for name in ("uname", "git", "openssl", "security", "xcodegen", "xcodebuild", "codesign", "ditto", "xcrun"):
+            target = self.bin / name
+            target.write_text(f"#!{sys.executable}\n" + FAKE_TOOL)
+            target.chmod(0o755)
+        for name in ("bash", "dirname", "head", "mkdir", "mktemp", "grep"):
+            target = shutil.which(name)
+            if not target:
+                raise RuntimeError(f"Required test utility unavailable: {name}")
+            (self.bin / name).symlink_to(target)
+        (self.bin / "python3").symlink_to(sys.executable)
+        self.env = {
+            "HOME": str(self.home), "PATH": str(self.bin), "LANG": "C", "LC_ALL": "C",
+            "RUNNER_TEMP": str(self.temp), "GITHUB_ENV": str(self.root / "github-env"),
+            "GITHUB_ACTIONS": "true", "GITHUB_EVENT_NAME": "workflow_dispatch",
+            "GITHUB_REF": "refs/heads/main", "GITHUB_SHA": "a" * 40,
+            "GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "1", "TESTFLIGHT_SIGNING_ENABLED": "true",
+            "FAKE_ROOT": str(self.root), "FAKE_BUILD_NUMBER": "17", **CONFIG,
+            "APPLE_DISTRIBUTION_P12_BASE64": base64.b64encode(b"FAKE-P12-NOT-A-CERTIFICATE").decode(),
+            "APPLE_DISTRIBUTION_P12_PASSWORD": "FAKE-P12-PASSWORD-MUST-STAY-PRIVATE",
+            "APPLE_APP_STORE_PROFILE_BASE64": base64.b64encode(profile).decode(),
+        }
+
+    def add_upload_secrets(self):
+        self.env.update({"ASC_PRIVATE_KEY_BASE64": base64.b64encode(b"FAKE-API-PRIVATE-KEY-NOT-A-KEY").decode(),
+                         "ASC_KEY_ID": "KLMNOPQRST", "ASC_ISSUER_ID": "12345678-1234-1234-1234-123456789DEF"})
+
+    def run(self, *args):
+        return subprocess.run([BASH, str(self.repo / "scripts/testflight-ci.sh"), *args],
+                              env=self.env, cwd=self.repo, capture_output=True, text=True, timeout=30)
+
+    def calls(self):
+        path = self.root / "calls.jsonl"
+        return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+
+
+class WorkflowSafetyTests(unittest.TestCase):
+    def test_shell_syntax(self):
+        for script in (SCRIPT, ROOT / "scripts/check-testflight-tools.sh"):
+            with self.subTest(script=script):
+                result = subprocess.run([BASH, "-n", str(script)], capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_manual_default_and_no_binary_artifacts(self):
+        text = WORKFLOW.read_text()
+        event_block = re.search(r"^on:\n(.*?)(?=^[^\s#])", text, re.MULTILINE | re.DOTALL).group(1)
+        self.assertEqual(re.findall(r"^  ([A-Za-z_]+):", event_block, re.MULTILINE), ["workflow_dispatch"])
+        self.assertIn("options: [archive, upload]", event_block)
+        self.assertIn("default: archive", event_block)
+        self.assertIn("contents: read", text)
+        self.assertIn("cancel-in-progress: false", text)
+        self.assertIn("runs-on: macos-26", text)
+        self.assertIn("/Applications/Xcode_26.6.app/Contents/Developer", text)
+        self.assertNotIn("upload-artifact", text)
+        self.assertNotIn("actions/cache", text)
+        self.assertNotIn("pull_request_target", text)
+        self.assertIn("persist-credentials: false", text)
+        self.assertIn("ref: ${{ github.sha }}", text)
+        self.assertRegex(text, r"if: always\(\)\n\s+run: ./scripts/testflight-ci.sh cleanup")
+
+    def test_secrets_are_scoped_after_preflight_and_optional_approval(self):
+        text = WORKFLOW.read_text()
+        before_signing, signing_job = text.split("\n  signing:", 1)
+        self.assertNotIn("${{ secrets.", before_signing)
+        self.assertIn("needs: [preflight, approval]", signing_job)
+        self.assertIn("needs.preflight.result == 'success'", signing_job)
+        self.assertIn("needs.approval.result == 'success'", signing_job)
+        self.assertIn("needs.approval.result == 'skipped'", signing_job)
+        self.assertIn("environment: testflight", before_signing)
+        self.assertIn("if: vars.TESTFLIGHT_REQUIRE_ENVIRONMENT_APPROVAL == 'true'", before_signing)
+        for secret in ("ASC_PRIVATE_KEY_BASE64", "ASC_KEY_ID", "ASC_ISSUER_ID"):
+            self.assertIn(f"inputs.action == 'upload' && secrets.{secret} || ''", signing_job)
+        self.assertIn('./scripts/testflight-ci.sh "$SELECTED_ACTION" "$BUILD_NUMBER"', signing_job)
+        # User-controlled workflow values must go through env, never shell interpolation.
+        for run in re.findall(r"^\s+run: ([^\n]+)", text, re.MULTILINE):
+            self.assertNotIn("${{", run)
+
+    def test_workflow_preflight_rejects_untrusted_or_invalid_requests(self):
+        text = WORKFLOW.read_text().split("\n  approval:", 1)[0]
+        script = text.split("        run: |\n", 1)[1]
+        script = "\n".join(line[10:] for line in script.splitlines() if line.strip())
+        valid = {"GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_REF": "refs/heads/main",
+                 "SIGNING_ENABLED": "true", "REQUIRE_APPROVAL": "", "SELECTED_ACTION": "archive", "BUILD_NUMBER": "1"}
+        cases = [({}, True), ({"SELECTED_ACTION": "upload", "BUILD_NUMBER": "9999"}, True)]
+        for key, values in {
+            "GITHUB_EVENT_NAME": ["push", "pull_request"], "GITHUB_REF": ["refs/heads/feature", "refs/tags/main"],
+            "SIGNING_ENABLED": ["", "false", "TRUE"], "REQUIRE_APPROVAL": ["yes"],
+            "SELECTED_ACTION": ["", "publish", "archive; echo injected"],
+            "BUILD_NUMBER": ["0", "10000", "-1", "1.0", "01", "$(echo injected)", "1\n2"],
+        }.items():
+            cases.extend(({key: value}, False) for value in values)
+        for updates, expected in cases:
+            with self.subTest(updates=updates):
+                # Inherit the host environment: some hosts re-exec bash endlessly under an empty one.
+                env = {**os.environ, **valid, **updates}
+                result = subprocess.run([BASH, "-c", script], env=env, capture_output=True, text=True, timeout=10)
+                self.assertEqual(result.returncode == 0, expected, result.stderr)
+
+
+class ProfileSafetyTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.path = Path(self.temp.name) / "profile.plist"
+        self.env = patch.dict(os.environ, CONFIG, clear=True)
+        self.env.start()
+        self.addCleanup(self.env.stop)
+
+    def validate(self, profile):
+        self.path.write_bytes(plistlib.dumps(profile))
+        return signing.validate_profile(self.path)
+
+    def test_valid_explicit_app_store_profile_and_legacy_app_prefix(self):
+        self.assertEqual(self.validate(profile_fixture())["UUID"], UUID)
+        profile = profile_fixture()
+        profile["ApplicationIdentifierPrefix"] = ["OLDPREFIX1"]
+        profile["Entitlements"]["application-identifier"] = f"OLDPREFIX1.{BUNDLE}"
+        self.assertEqual(self.validate(profile)["UUID"], UUID)
+
+    def test_wrong_team_app_expired_development_adhoc_enterprise_wildcard_rejected(self):
+        cases = [
+            ("wrong team", {"TeamIdentifier": ["ZZZZZZZZZZ"]}, {}),
+            ("wrong team entitlement", {}, {"com.apple.developer.team-identifier": "ZZZZZZZZZZ"}),
+            ("wrong app", {}, {"application-identifier": f"{TEAM}.com.example.other"}),
+            ("wildcard", {}, {"application-identifier": f"{TEAM}.*"}),
+            ("expired", {"ExpirationDate": dt.datetime(2000, 1, 1)}, {}),
+            ("development", {}, {"get-task-allow": True}),
+            ("ad hoc", {"ProvisionedDevices": ["fake-device"]}, {}),
+            ("empty device list", {"ProvisionedDevices": []}, {}),
+            ("enterprise", {"ProvisionsAllDevices": True}, {}),
+            ("not app store", {}, {"beta-reports-active": False}),
+            ("not iOS", {"Platform": ["OSX"]}, {}),
+            ("invalid UUID", {"UUID": "../../outside"}, {}),
+            ("no certificate", {"DeveloperCertificates": []}, {}),
+            ("invalid certificate", {"DeveloperCertificates": ["not bytes"]}, {}),
+        ]
+        for label, values, entitlements in cases:
+            with self.subTest(label=label):
+                profile = profile_fixture()
+                profile.update(values)
+                profile["Entitlements"].update(entitlements)
+                with self.assertRaises(signing.ValidationError):
+                    self.validate(profile)
+
+    def test_missing_required_profile_metadata_rejected(self):
+        for key in ("ExpirationDate", "TeamIdentifier", "ApplicationIdentifierPrefix", "Platform", "UUID", "DeveloperCertificates", "Entitlements"):
+            with self.subTest(key=key):
+                profile = profile_fixture()
+                del profile[key]
+                with self.assertRaises(signing.ValidationError):
+                    self.validate(profile)
+
+    def test_only_matching_distribution_identity_is_accepted(self):
+        self.validate(profile_fixture())
+        identities = self.path.with_name("identities.txt")
+        good = f'  1) {FINGERPRINT} "Apple Distribution: Test ({TEAM})"\n'
+        identities.write_text(good)
+        self.assertEqual(signing.identity(self.path, identities), FINGERPRINT)
+        for invalid in ("", good.replace(FINGERPRINT, "0" * 40), good.replace(TEAM, "ZZZZZZZZZZ"),
+                        good.replace("Apple Distribution:", "Apple Development:"), good + good):
+            with self.subTest(identity=invalid):
+                identities.write_text(invalid)
+                with self.assertRaises(signing.ValidationError):
+                    signing.identity(self.path, identities)
+
+    def test_export_options_cannot_upload_or_automatically_provision(self):
+        self.validate(profile_fixture())
+        destination = self.path.with_name("ExportOptions.plist")
+        signing.export_options(self.path, FINGERPRINT, destination)
+        options = plistlib.loads(destination.read_bytes())
+        self.assertEqual(options["method"], "app-store-connect")
+        self.assertEqual(options["destination"], "export")
+        self.assertEqual(options["signingStyle"], "manual")
+        self.assertEqual(options["provisioningProfiles"], {BUNDLE: UUID})
+        self.assertFalse(options["manageAppVersionAndBuildNumber"])
+        self.assertFalse(options["uploadSymbols"])
+
+    def test_export_options_map_extension_profiles(self):
+        self.validate(profile_fixture())
+        destination = self.path.with_name("ExportOptions.plist")
+        signing.export_options(self.path, FINGERPRINT, destination, BUNDLE + ".Widgets", EXTENSION_UUID)
+        options = plistlib.loads(destination.read_bytes())
+        self.assertEqual(options["provisioningProfiles"], {BUNDLE: UUID, BUNDLE + ".Widgets": EXTENSION_UUID})
+        for embedded in (("com.example.other.Widgets", EXTENSION_UUID), (BUNDLE + ".Widgets", "../outside"),
+                         (BUNDLE + ".Widgets",)):
+            with self.subTest(embedded=embedded), self.assertRaises(signing.ValidationError):
+                signing.export_options(self.path, FINGERPRINT, destination.with_name("other.plist"), *embedded)
+
+    def test_base64_decode_is_strict_and_does_not_overwrite(self):
+        destination = self.path.with_name("decoded")
+        for value in ("%%%invalid%%%", "", " \n "):
+            with self.subTest(value=value), patch.dict(os.environ, {"SECRET": value}), self.assertRaises(signing.ValidationError):
+                signing.decode("SECRET", destination)
+            self.assertFalse(destination.exists())
+        with patch.dict(os.environ, {"SECRET": base64.b64encode(b"synthetic data").decode()}):
+            signing.decode("SECRET", destination)
+            self.assertEqual(destination.stat().st_mode & 0o777, 0o600)
+            with self.assertRaises(FileExistsError):
+                signing.decode("SECRET", destination)
+        self.assertEqual(destination.read_bytes(), b"synthetic data")
+
+    def test_malformed_secret_plist_parser_diagnostics_are_redacted(self):
+        self.path.write_text('<plist version="1.0"><dict><key>ExpirationDate</key>'
+                             '<integer>REVIEW_SECRET_MARKER</integer></dict></plist>')
+        result = subprocess.run([sys.executable, str(ROOT / "scripts/testflight-signing.py"), "profile", str(self.path)],
+                                env=CONFIG, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertNotIn("REVIEW_SECRET_MARKER", result.stdout + result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertEqual(result.stdout, "")
+
+
+bundle_spec = importlib.util.spec_from_file_location("verify_ios_bundle", ROOT / "scripts/verify-ios-bundle.py")
+bundle_rules = importlib.util.module_from_spec(bundle_spec)
+bundle_spec.loader.exec_module(bundle_rules)
+
+
+class BundleRulesTests(unittest.TestCase):
+    """The Release bundle must stay bilingual, untracked and declare exactly the data it sends."""
+
+    def make_bundle(self, info_updates=None, privacy_updates=None, languages=("en", "it")):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        app = Path(temp.name) / "Putia.app"
+        app.mkdir()
+        info = {
+            "CFBundleExecutable": "Putia", "UIDeviceFamily": [1],
+            "CFBundleIcons": {"CFBundlePrimaryIcon": {"CFBundleIconName": "AppIcon"}},
+            "CFBundleShortVersionString": "0.1.0", "CFBundleVersion": "1",
+            "ITSAppUsesNonExemptEncryption": False, **(info_updates or {}),
+        }
+        privacy = {"NSPrivacyTracking": False, "NSPrivacyTrackingDomains": [],
+                   "NSPrivacyCollectedDataTypes": declared_data(), **(privacy_updates or {})}
+        (app / "Info.plist").write_bytes(plistlib.dumps(info))
+        (app / "PrivacyInfo.xcprivacy").write_bytes(plistlib.dumps(privacy))
+        (app / "Assets.car").write_bytes(b"synthetic compiled assets")
+        for language in languages:
+            (app / f"{language}.lproj").mkdir()
+        return app
+
+    def test_valid_bundle_passes(self):
+        self.assertTrue(bundle_rules.verify(self.make_bundle()))
+
+    def test_rule_violations_are_rejected(self):
+        cases = [
+            ("transport exception", {"info_updates": {"NSAppTransportSecurity": {"NSAllowsArbitraryLoads": True}}}),
+            ("iPad family", {"info_updates": {"UIDeviceFamily": [1, 2]}}),
+            ("missing export compliance", {"info_updates": {"ITSAppUsesNonExemptEncryption": None}}),
+            ("tracking", {"privacy_updates": {"NSPrivacyTracking": True}}),
+            ("tracking domain", {"privacy_updates": {"NSPrivacyTrackingDomains": ["example.com"]}}),
+            ("undeclared data", {"privacy_updates": {"NSPrivacyCollectedDataTypes": declared_data() + [
+                {**declared_data()[0], "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeEmailAddress"}]}}),
+            ("missing declaration", {"privacy_updates": {"NSPrivacyCollectedDataTypes": declared_data()[:1]}}),
+            ("linked data", {"privacy_updates": {"NSPrivacyCollectedDataTypes": [
+                {**entry, "NSPrivacyCollectedDataTypeLinked": True} for entry in declared_data()]}}),
+            ("missing Italian", {"languages": ("en",)}),
+            ("missing English", {"languages": ("it",)}),
+        ]
+        for label, kwargs in cases:
+            with self.subTest(label=label):
+                if kwargs.get("info_updates", {}).get("ITSAppUsesNonExemptEncryption", False) is None:
+                    app = self.make_bundle()
+                    info = plistlib.loads((app / "Info.plist").read_bytes())
+                    del info["ITSAppUsesNonExemptEncryption"]
+                    (app / "Info.plist").write_bytes(plistlib.dumps(info))
+                else:
+                    app = self.make_bundle(**kwargs)
+                with self.assertRaises(ValueError):
+                    bundle_rules.verify(app)
+
+
+diagnostics_spec = importlib.util.spec_from_file_location("archive_diagnostics", ROOT / "scripts/archive-diagnostics.py")
+archive_diagnostics = importlib.util.module_from_spec(diagnostics_spec)
+diagnostics_spec.loader.exec_module(archive_diagnostics)
+
+
+class ArchiveDiagnosticsTests(unittest.TestCase):
+    """Archive failures are reported as fixed codes; raw log text is never printed."""
+
+    def classify(self, text):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        log = Path(temp.name) / "archive.log"
+        log.write_text(text)
+        return archive_diagnostics.classify(log)
+
+    def test_package_target_profile_error_is_recognized(self):
+        codes = self.classify("note: building\nerror: PutiaCore does not support provisioning profiles, "
+                              "but provisioning profile REVIEW_SECRET_MARKER has been manually specified.\n")
+        self.assertEqual(codes, ["ARCHIVE_PROVISIONING_NOT_SUPPORTED"])
+
+    def test_successful_compiler_lines_are_not_misclassified(self):
+        self.assertEqual(self.classify("SwiftCompile normal arm64 Workout.swift\n"), ["ARCHIVE_UNCLASSIFIED"])
+
+    def test_output_contains_only_codes(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        log = Path(temp.name) / "archive.log"
+        log.write_text("error: linker command failed REVIEW_SECRET_MARKER\n")
+        result = subprocess.run([sys.executable, str(ROOT / "scripts/archive-diagnostics.py"), str(log)],
+                                capture_output=True, text=True)
+        self.assertEqual(result.stdout.split(), ["ARCHIVE_LINK"])
+        self.assertNotIn("REVIEW_SECRET_MARKER", result.stdout + result.stderr)
+
+
+    def classify_upload(self, text):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        log = Path(temp.name) / "upload.log"
+        log.write_text(text)
+        return archive_diagnostics.classify_upload(log)
+
+    def test_upload_errors_print_apple_codes_and_fixed_codes_only(self):
+        codes = self.classify_upload('{"product-errors": [{"message": "ITMS-90683: Missing purpose string REVIEW_SECRET_MARKER"},'
+                                     ' {"message": "ITMS-90683 again, then ITMS-90046"}]}')
+        self.assertEqual(codes, ["ITMS-90683", "ITMS-90046", "UPLOAD_MISSING_PURPOSE_STRING"])
+        self.assertEqual(self.classify_upload("something unexpected REVIEW_SECRET_MARKER"), ["UPLOAD_UNCLASSIFIED"])
+
+
+class SigningOrchestrationTests(unittest.TestCase):
+    def make_runner(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        return OfflineRunner(temp.name)
+
+    def assert_private_output(self, runner, result):
+        output = result.stdout + result.stderr
+        for secret in (TOOL_OUTPUT, "FAKE-P12-NOT-A-CERTIFICATE", "FAKE-API-PRIVATE-KEY-NOT-A-KEY",
+                       "FAKE-CERTIFICATE-NOT-DER-NO-PRIVATE-KEY", "1" * 64,
+                       *[value for key, value in runner.env.items() if key.startswith(("APPLE_", "ASC_"))]):
+            if secret:
+                self.assertNotIn(secret, output)
+        self.assertNotIn("<plist", output)
+
+    def assert_clean(self, runner):
+        self.assertEqual(list(runner.temp.iterdir()), [])
+        self.assertFalse((runner.repo / "ios/Config/Signing.local.xcconfig").exists())
+        self.assertEqual(sorted(path.name for path in runner.profile_dir.iterdir()), ["unrelated.mobileprovision"])
+        self.assertEqual((runner.profile_dir / "unrelated.mobileprovision").read_text(), "preserve unrelated profile")
+        self.assertEqual(json.loads((runner.root / "keychains.json").read_text()), runner.original_keychains)
+        for path in runner.original_keychains:
+            self.assertEqual(Path(path).read_text(), "preserve original keychain")
+
+    def assert_no_sensitive_commands(self, runner):
+        self.assertTrue(all(call[0] in ("uname", "git") for call in runner.calls()), runner.calls())
+        self.assert_clean(runner)
+
+    def test_missing_configuration_and_invalid_input_fail_before_signing(self):
+        cases = [(key, "") for key in (*CONFIG, "APPLE_DISTRIBUTION_P12_BASE64", "APPLE_DISTRIBUTION_P12_PASSWORD", "APPLE_APP_STORE_PROFILE_BASE64")]
+        cases += [("PUTIA_TEAM_ID", "bad"), ("PUTIA_BUNDLE_ID", "dev.putia.app"), ("PUTIA_BUNDLE_ID", "noreversedns")]
+        for key, value in cases:
+            with self.subTest(key=key, value=value):
+                runner = self.make_runner()
+                runner.env[key] = value
+                result = runner.run("archive", "17")
+                self.assertNotEqual(result.returncode, 0)
+                self.assert_no_sensitive_commands(runner)
+                self.assert_private_output(runner, result)
+        for args in [(), ("archive",), ("publish", "17"), ("archive", "0"), ("archive", "10000"),
+                     ("archive", "01"), ("archive", "17; echo injected"), ("archive", "17", "extra")]:
+            with self.subTest(args=args):
+                runner = self.make_runner()
+                result = runner.run(*args)
+                self.assertNotEqual(result.returncode, 0)
+                self.assert_no_sensitive_commands(runner)
+
+    def test_missing_app_project_fails_before_signing(self):
+        runner = self.make_runner()
+        (runner.repo / "ios/project.yml").unlink()
+        result = runner.run("archive", "17")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("No iOS app project exists yet", result.stderr)
+        self.assert_no_sensitive_commands(runner)
+
+    def test_manual_main_exact_commit_and_signing_optin_required(self):
+        for key, value in [("GITHUB_ACTIONS", "false"), ("GITHUB_EVENT_NAME", "push"),
+                           ("GITHUB_EVENT_NAME", "pull_request"), ("GITHUB_REF", "refs/heads/feature"),
+                           ("GITHUB_REF", "refs/tags/main"), ("GITHUB_SHA", "b" * 40),
+                           ("TESTFLIGHT_SIGNING_ENABLED", "false"), ("TESTFLIGHT_SIGNING_ENABLED", ""),
+                           ("GITHUB_RUN_ID", "../outside"), ("GITHUB_RUN_ATTEMPT", ""), ("RUNNER_TEMP", "/does/not/exist")]:
+            with self.subTest(key=key, value=value):
+                runner = self.make_runner()
+                runner.env[key] = value
+                result = runner.run("archive", "17")
+                self.assertNotEqual(result.returncode, 0)
+                self.assert_no_sensitive_commands(runner)
+
+    def test_upload_requires_additional_valid_api_secrets_before_signing(self):
+        for key, value in [("ASC_PRIVATE_KEY_BASE64", ""), ("ASC_KEY_ID", ""), ("ASC_ISSUER_ID", ""),
+                           ("ASC_KEY_ID", "../bad"), ("ASC_ISSUER_ID", "not-a-uuid")]:
+            with self.subTest(key=key, value=value):
+                runner = self.make_runner()
+                runner.add_upload_secrets()
+                runner.env[key] = value
+                result = runner.run("upload", "17")
+                self.assertNotEqual(result.returncode, 0)
+                self.assert_no_sensitive_commands(runner)
+                self.assert_private_output(runner, result)
+
+    def test_archive_verifies_both_products_never_uploads_and_cleans_up(self):
+        runner = self.make_runner()
+        result = runner.run("archive", "17")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = runner.calls()
+        self.assertFalse(any(call[:2] == ["xcrun", "altool"] for call in calls))
+        # The app, in both the archive and the exported IPA.
+        self.assertEqual(sum(call[:2] == ["codesign", "--verify"] for call in calls), 2)
+        options = json.loads((runner.root / "export-options.json").read_text())
+        self.assertEqual(options["provisioningProfiles"], {BUNDLE: UUID})
+        self.assertEqual(sum(call[:2] == ["xcodebuild", "archive"] for call in calls), 1)
+        self.assertEqual(sum(call[:2] == ["xcodebuild", "-exportArchive"] for call in calls), 1)
+        self.assertFalse(any("-allowProvisioningUpdates" in call for call in calls))
+        self.assertIn("Archive mode performed no upload", result.stdout)
+        self.assert_private_output(runner, result)
+        self.assert_clean(runner)
+        # The always() defense may execute after EXIT cleanup; it must be harmless.
+        key, value = (runner.root / "github-env").read_text().strip().split("=", 1)
+        runner.env[key] = value
+        again = runner.run("cleanup")
+        self.assertEqual(again.returncode, 0, again.stderr)
+        self.assert_clean(runner)
+
+    def test_signing_settings_are_scoped_to_the_app_target(self):
+        # Global xcodebuild settings would also reach the Swift package targets, which
+        # cannot use a provisioning profile; the app target reads them from an xcconfig.
+        runner = self.make_runner()
+        result = runner.run("archive", "17")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        archive = next(call for call in runner.calls() if call[:2] == ["xcodebuild", "archive"])
+        self.assertEqual([arg for arg in archive if re.match(r"^[A-Z_]+(\[[^\]]*\])?=", arg)], [])
+        settings = (runner.root / "archive-signing.xcconfig").read_text().splitlines()
+        for line in ("PUTIA_CODE_SIGN_STYLE = Manual", f"PUTIA_DEVELOPMENT_TEAM = {TEAM}",
+                     f"PUTIA_APP_BUNDLE_ID = {BUNDLE}", f"PUTIA_PROVISIONING_PROFILE = {UUID}",
+                     f"PUTIA_CODE_SIGN_IDENTITY = {FINGERPRINT}", "CURRENT_PROJECT_VERSION = 17"):
+            self.assertIn(line, settings)
+        self.assert_clean(runner)
+
+    def test_archive_failure_prints_only_fixed_diagnostic_codes(self):
+        runner = self.make_runner()
+        runner.env["FAKE_FAIL_AT"] = "xcodebuild:archive"
+        result = runner.run("archive", "17")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("ARCHIVE_UNCLASSIFIED", result.stdout)
+        self.assert_private_output(runner, result)
+        self.assert_clean(runner)
+
+    def test_explicit_upload_uses_only_mocked_uploader_then_cleans_up(self):
+        for style, flags in [("legacy", ("--apiKey", "--apiIssuer", "-t")),
+                             ("current", ("--api-key", "--api-issuer", "--platform"))]:
+            with self.subTest(style=style):
+                runner = self.make_runner()
+                runner.add_upload_secrets()
+                runner.env["FAKE_ALTOOL_STYLE"] = style
+                result = runner.run("upload", "17")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                uploads = [call for call in runner.calls() if call[:3] == ["xcrun", "altool", "--upload-app"]]
+                self.assertEqual(len(uploads), 1)
+                for flag in flags:
+                    self.assertIn(flag, uploads[0])
+                self.assert_private_output(runner, result)
+                self.assert_clean(runner)
+
+    def test_upload_failure_prints_only_apple_error_codes(self):
+        runner = self.make_runner()
+        runner.add_upload_secrets()
+        runner.env["FAKE_ALTOOL_ERROR"] = "1"
+        result = runner.run("upload", "17")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual([line for line in result.stdout.splitlines() if line.startswith(("ITMS-", "UPLOAD_"))],
+                         ["ITMS-90683", "UPLOAD_MISSING_PURPOSE_STRING"])
+        self.assertIn("Manual signing failed while", result.stderr)
+        self.assert_private_output(runner, result)
+        self.assert_clean(runner)
+
+    def test_unsupported_uploader_stops_without_upload_and_cleans_up(self):
+        runner = self.make_runner()
+        runner.add_upload_secrets()
+        runner.env["FAKE_ALTOOL_STYLE"] = "unsupported"
+        result = runner.run("upload", "17")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(any(call[:3] == ["xcrun", "altool", "--upload-app"] for call in runner.calls()))
+        self.assert_private_output(runner, result)
+        self.assert_clean(runner)
+
+    def test_failure_cleanup_and_original_search_list_are_preserved(self):
+        for stage in ("security:import", "xcodegen:generate", "xcodebuild:archive", "codesign:--verify",
+                      "xcodebuild:-exportArchive", "ditto:-x", "xcrun:altool", "xcrun:upload"):
+            with self.subTest(stage=stage):
+                runner = self.make_runner()
+                runner.add_upload_secrets()
+                runner.env["FAKE_FAIL_AT"] = stage
+                result = runner.run("upload", "17")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("Manual signing failed while", result.stderr)
+                self.assert_private_output(runner, result)
+                self.assert_clean(runner)
+
+    def test_keychain_cleanup_error_fails_job_but_still_removes_private_products(self):
+        runner = self.make_runner()
+        runner.env["FAKE_FAIL_AT"] = "security:delete-keychain"
+        result = runner.run("archive", "17")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Temporary signing cleanup could not be verified", result.stderr)
+        self.assert_private_output(runner, result)
+        self.assert_clean(runner)
+
+    def test_malformed_profile_fails_before_importing_identity(self):
+        runner = self.make_runner()
+        profile = profile_fixture()
+        profile["Entitlements"]["get-task-allow"] = True
+        runner.env["APPLE_APP_STORE_PROFILE_BASE64"] = base64.b64encode(plistlib.dumps(profile)).decode()
+        result = runner.run("archive", "17")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(any(call[:2] == ["security", "import"] for call in runner.calls()))
+        self.assert_clean(runner)
+
+    def test_invalid_base64_fails_and_removes_private_temp_files(self):
+        runner = self.make_runner()
+        runner.env["APPLE_DISTRIBUTION_P12_BASE64"] = "SECRET-INVALID-BASE64-%"
+        result = runner.run("archive", "17")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(any(call[0] == "security" for call in runner.calls()))
+        self.assert_private_output(runner, result)
+        self.assert_clean(runner)
+
+    def test_cleanup_refuses_unrelated_path_or_symlink(self):
+        runner = self.make_runner()
+        outside = runner.root / "keep-me"
+        outside.mkdir()
+        (outside / "sentinel").write_text("keep")
+        link = runner.temp / "putia-testflight.123.1.abcdef"
+        link.symlink_to(outside, target_is_directory=True)
+        for path in (outside, link, runner.temp):
+            with self.subTest(path=path):
+                runner.env["PUTIA_TESTFLIGHT_STATE"] = str(path)
+                result = runner.run("cleanup")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual((outside / "sentinel").read_text(), "keep")
+                self.assertEqual(runner.calls(), [])
+
+
+if __name__ == "__main__":
+    unittest.main()
