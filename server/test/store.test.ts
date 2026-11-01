@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { RuleError } from "../src/rules";
 import { Conflict, Invalid, Store } from "../src/store";
 import { testDatabase } from "./d1";
 
@@ -45,74 +44,23 @@ describe("revisions and conflicts", () => {
   });
 });
 
-describe("what the AI may do", () => {
-  it("saves the AI's tags as suggestions", async () => {
-    const jacket = await create("piece", piece());
-    const saved = await store.write({
-      kind: "piece",
-      id: jacket.id,
-      actor: AI,
-      baseRevision: 1,
-      data: piece({ attrs: { material: { value: "cotton canvas", state: "confirmed", by: "x" } } }),
-    });
-    expect(saved.doc.data.attrs).toEqual({ material: { value: "cotton canvas", state: "suggested", by: AI } });
-  });
+describe("an AI", () => {
+  it("changes the person's records like the person can, attributed to it", async () => {
+    const jacket = await create("piece", piece({ name: "Blue jacket", attrs: { material: { value: "wool", state: "confirmed", by: "human" } } }));
+    const renamed = await store.write({ kind: "piece", id: jacket.id, actor: AI, baseRevision: 1, data: piece({ name: "Arpenteur Travail jacket" }) });
+    expect(renamed.doc.data).toEqual(piece({ name: "Arpenteur Travail jacket" }));
 
-  it("can't change a value the person confirmed", async () => {
-    const jacket = await create("piece", piece({ attrs: { material: { value: "wool", state: "confirmed", by: "human" } } }));
-    const change = store.write({
-      kind: "piece",
-      id: jacket.id,
-      actor: AI,
-      baseRevision: 1,
-      data: piece({ attrs: { material: { value: "cotton", state: "suggested", by: AI } } }),
-    });
-    await expect(change).rejects.toBeInstanceOf(RuleError);
-  });
+    const look = await create("outfit", outfit([jacket.id]));
+    const tried = await store.write({ kind: "outfit", id: look.id, actor: AI, baseRevision: 1, data: outfit([jacket.id], { stage: "tried" }) });
+    expect(tried.doc.data.stage).toBe("tried");
 
-  it("proposes outfits but can't mark them tried", async () => {
-    const jacket = await create("piece", piece());
-    await expect(create("outfit", outfit([jacket.id], { stage: "tried" }), AI)).rejects.toBeInstanceOf(RuleError);
-    const proposal = await create("outfit", outfit([jacket.id]), AI);
-    const tried = store.write({ kind: "outfit", id: proposal.id, actor: AI, baseRevision: 1, data: outfit([jacket.id], { stage: "tried" }) });
-    await expect(tried).rejects.toBeInstanceOf(RuleError);
-    const byPerson = await store.write({ kind: "outfit", id: proposal.id, actor: "human", baseRevision: 1, data: outfit([jacket.id], { stage: "tried" }) });
-    expect(byPerson.doc.data.stage).toBe("tried");
-  });
+    const wish = await create("wish", { name: "Straight grey trousers", status: "considering" });
+    const bought = await store.write({ kind: "wish", id: wish.id, actor: AI, baseRevision: 1, data: { name: "Straight grey trousers", status: "bought" } });
+    expect(bought.doc.data.status).toBe("bought");
 
-  it("records a nothing-needed review and can't mark a wish bought", async () => {
-    const review = await create("review", { conclusion: "nothing-needed", summary: "The trousers you own already do this." }, AI);
-    expect(review.data.conclusion).toBe("nothing-needed");
-    const wish = { name: "Straight grey trousers", status: "considering" };
-    const added = await create("wish", wish, AI);
-    await expect(store.write({ kind: "wish", id: added.id, actor: AI, baseRevision: 1, data: { ...wish, status: "bought" } })).rejects.toBeInstanceOf(RuleError);
-  });
-
-  it("adds photos to pieces, and the person picks the main one", async () => {
-    const jacket = await create("piece", piece());
-    const photo = { ownerKind: "piece", ownerId: jacket.id };
-    const found = await store.write({ kind: "photo", id: newId(), actor: AI, baseRevision: 0, data: photo });
-    expect(found.doc.createdBy).toBe(AI);
-    await expect(store.write({ kind: "photo", id: found.doc.id, actor: AI, baseRevision: 1, data: photo })).rejects.toBeInstanceOf(RuleError);
-    // The person makes it the main photo; the AI can't change that.
-    const main = await store.write({ kind: "piece", id: jacket.id, actor: "human", baseRevision: 1, data: piece({ mainPhotoId: found.doc.id }) });
-    expect(main.doc.data.mainPhotoId).toBe(found.doc.id);
-    const tagged = await store.write({ kind: "piece", id: jacket.id, actor: AI, baseRevision: 2, data: piece() });
-    expect(tagged.doc.data.mainPhotoId).toBe(found.doc.id);
-  });
-
-  it("comments on inspiration rather than changing it", async () => {
-    const reference = await create("reference", { title: "Loose linen" });
-    await expect(store.write({ kind: "reference", id: reference.id, actor: AI, baseRevision: 1, data: { title: "Linen" } })).rejects.toBeInstanceOf(RuleError);
-    const comment = await create("comment", { subjectKind: "reference", subjectId: reference.id, text: "Your ecru knit carries the same softness." }, AI);
-    expect(comment.createdBy).toBe(AI);
-  });
-
-  it("deletes only its own records", async () => {
-    const jacket = await create("piece", piece());
-    await expect(store.remove("piece", jacket.id, AI, 1)).rejects.toBeInstanceOf(RuleError);
-    const proposal = await create("outfit", outfit([jacket.id]), AI);
-    expect((await store.remove("outfit", proposal.id, AI, 1)).doc.deleted).toBe(true);
+    expect((await store.remove("piece", jacket.id, AI, 2)).doc.deleted).toBe(true);
+    const changes = await store.history();
+    expect(changes.filter((change) => change.op !== "create").map((change) => change.actor)).toEqual([AI, AI, AI, AI]);
   });
 });
 
@@ -139,10 +87,12 @@ describe("history and undo", () => {
     await expect(store.undo(first.seq, "human")).rejects.toBeInstanceOf(Conflict);
   });
 
-  it("lets the AI undo only AI changes", async () => {
+  it("lets an AI undo the person's change", async () => {
     const jacket = await create("piece", piece());
     const renamed = await store.write({ kind: "piece", id: jacket.id, actor: "human", baseRevision: 1, data: piece({ name: "Mine" }) });
-    await expect(store.undo(renamed.seq, AI)).rejects.toBeInstanceOf(RuleError);
+    const undone = await store.undo(renamed.seq, AI);
+    expect(undone.doc.data.name).toBe("Navy chore jacket");
+    expect((await store.change(undone.seq))?.actor).toBe(AI);
   });
 
   it("feeds the app every record changed since its cursor", async () => {

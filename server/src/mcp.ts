@@ -11,11 +11,11 @@ import { type Doc, Invalid, NotFound, Store } from "./store";
 // The tools an AI sees. It works on the same records as the app: everything it saves is
 // attributed to it, kept in the history and can be undone.
 
-const INSTRUCTIONS = `Putia is the user's wardrobe studio. You and the user work on the same saved records: the pieces they own, outfits (proposed → tried → favourite), inspiration images, a shortlist of possible additions, and reviews. Start with "overview". Before your first assessment or outfit, read "guidance": the assessment approach to follow here. Everything you save is attributed to you, kept in history, and can be undone.
-- Look at the photos ("get_photo") before judging a piece or outfit. A photo can't establish material, true colour, size or comfort: tags you set on pieces are saved as suggestions for the user to confirm.
+const INSTRUCTIONS = `Putia is the user's wardrobe studio. You and the user work on the same saved records: the pieces they own, outfits (proposed → tried → favourite), inspiration images, a shortlist of possible additions, and reviews. Start with "overview". Before your first assessment or outfit, read "guidance": the assessment approach to follow here. You can change anything the user can. Everything you save is attributed to you, kept in history, and can be undone.
+- Look at the photos ("get_photo") before judging a piece or outfit. A photo can't establish material, true colour, size or comfort: save the tags you set with state "suggested" and "by" set to your name, so the user can confirm them.
 - Get to know each piece. When a label, tag, barcode or product code is visible, or a comment names the brand and model, search the web for that exact product if you can. Add its clearest photo with "add_photo" (the piece alone on a plain or transparent background: no model, no other items), suggest tags from the listing, and comment on the piece with what you found and the link. Only when you're sure it's the same product: a listing shows the product as sold, not this piece's true colour, wear or alterations.
 - When you can't tell exactly what a piece is, ask the user for a photo of its label, care tag or barcode, or the brand and product name or code: in your conversation, or as a comment on the piece (they can add the photo to the piece, or answer with a comment). Ask about the pieces that matter most first, a few at a time.
-- Propose outfits only from owned pieces, with a note on the intended effect, silhouette and texture, and what a collage can't show. Only the user marks an outfit tried or favourite; their comments and photos tell you what works.
+- Propose outfits only from owned pieces, as "proposed", with a note on the intended effect, silhouette and texture, and what a collage can't show. The user's comments and photos tell you what works.
 - Before suggesting a purchase, look for combinations of what they own. "Nothing needed" and "try a different combination" are valid conclusions: record them with "save_review". A shortlist entry's note names the problem it solves and the pieces it goes with.
 - Judge whole combinations, name the smallest sufficient change, separate observation from preference. No scores, flattery or universal rules.
 - If a save reports a conflict, the user changed the record meanwhile: read it again and redo your change on top.`;
@@ -44,11 +44,10 @@ const text = (value: unknown, isError = false) => ({
 const view = (doc: Doc) => ({ kind: doc.kind, id: doc.id, revision: doc.revision, by: doc.createdBy, updatedAt: doc.updatedAt, ...doc.data });
 
 const SAVE_DESCRIPTIONS = {
-  piece:
-    'Create or update a piece the user owns, mostly to suggest tags for pieces that need review. Tags (attrs) are saved as "suggested"; you can\'t change a tag the user confirmed, rename a piece they named, or change its main photo.',
-  outfit:
-    'Create or update an outfit from owned pieces. New outfits are "proposed"; only the user changes the stage. In the note, explain the intended effect, the silhouette and texture, and what a collage can\'t show.',
-  wish: 'Add or update a shortlist entry: something the user might acquire. In the note, name the problem it solves in terms of what they own, and the pieces it goes with. Status stays "considering": only the user marks it bought or dismissed.',
+  piece: "Create or update a piece the user owns: its name (brand and model, when you know them), tags and main photo.",
+  outfit: "Create or update an outfit from owned pieces. In the note, explain the intended effect, the silhouette and texture, and what a collage can't show.",
+  reference: "Create or update an inspiration image's title and note.",
+  wish: "Add or update a shortlist entry: something the user might acquire. In the note, name the problem it solves in terms of what they own, and the pieces it goes with.",
   review: 'Record a conclusion about what\'s missing: "gaps", "try-combinations" or "nothing-needed", with a short summary. All three are valid results.',
 };
 
@@ -162,7 +161,7 @@ export async function handleMcp(request: Request, env: Env, props: Props): Promi
     "add_photo",
     {
       description:
-        "Add a photo to a piece: one of its exact product that you found online, from a shop or the brand. Pass the image file's https address. Choose one with the piece alone on a plain or transparent background: no model, no other items. JPEG, PNG or WebP, up to 8 MB. The user's photos stay as they are; they can make yours the piece's main photo, or delete it.",
+        "Add a photo to a piece: one of its exact product that you found online, from a shop or the brand. Pass the image file's https address. Choose one with the piece alone on a plain or transparent background: no model, no other items. JPEG, PNG or WebP, up to 8 MB.",
       inputSchema: z.object({
         piece_id: z.string(),
         image_url: z.string().url().describe("The image file itself (https)"),
@@ -188,7 +187,7 @@ export async function handleMcp(request: Request, env: Env, props: Props): Promi
       }),
   );
 
-  for (const kind of ["piece", "outfit", "wish", "review"] as const) {
+  for (const kind of ["piece", "outfit", "reference", "wish", "review"] as const) {
     server.registerTool(
       `save_${kind}`,
       {
@@ -225,7 +224,7 @@ export async function handleMcp(request: Request, env: Env, props: Props): Promi
   server.registerTool(
     "delete",
     {
-      description: "Delete a record you created (for example a proposal that no longer makes sense). It stays in history and can be undone.",
+      description: "Delete a record. It stays in history and can be undone.",
       inputSchema: z.object({ kind: z.enum(KINDS), id: z.string(), revision: z.number().int().min(1), note: z.string().max(300).optional() }),
       annotations: { destructiveHint: true },
     },
@@ -250,7 +249,7 @@ export async function handleMcp(request: Request, env: Env, props: Props): Promi
   server.registerTool(
     "undo",
     {
-      description: "Undo one change by its number (from history). You can undo changes made by AI; the user can undo anything in the app.",
+      description: "Undo one change by its number (from history).",
       inputSchema: z.object({ change: z.number().int().min(1) }),
     },
     async ({ change }) => attempt(async () => ({ restored: view((await store.undo(change, actor)).doc) })),

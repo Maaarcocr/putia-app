@@ -10,7 +10,7 @@ Status: first vertical slice (0.1). See `docs/product-spec.md` §9.
 
 - `docs/product-spec.md`: what the app does. Read it before any product, UX, copy or flow change, and update it in the same change when behaviour changes on purpose.
 - `docs/architecture.md`: how it is built, and how to deploy the server.
-- `docs/connector.md`: the AI connector: pairing, tools, what an AI may change, the app's API.
+- `docs/connector.md`: the AI connector: pairing, tools, the app's API.
 - `docs/testflight.md`: the release pipeline and Apple/GitHub setup.
 - `docs/styling/`: the outfit-assessment approach the AI follows. `server/src/guidance.ts` is generated from it (`npm run sync-guidance`).
 - `AGENTS.md` (this file): how to work here.
@@ -29,8 +29,7 @@ The owner's most important rule: plain, standard, boring code, with the fewest m
 
 - **English and Italian.** Every user-facing string goes through `ios/App/Sources/Support/L10n.swift` with English and Italian in `Localizable.xcstrings`: UI text, accessibility labels, errors, and the server's sign-in page (`server/src/authorize.ts`). Use `FormatStyle` for dates and numbers. `scripts/check-strings.py` enforces the app side.
 - **The AI is outside the app.** Never add an AI model, API key or chat to the app.
-- **Honest evidence.** Any tag an AI sets is a suggestion until the person confirms it. Material and fit are never shown as facts from a photo. The server enforces what an AI may change (`server/src/rules.ts`); keep the tool descriptions in `server/src/mcp.ts` truthful about it.
-- **Only the person** marks outfits tried or favourite, marks a shortlist entry bought or dismissed, picks a piece's main photo and deletes what they made. An AI may add a photo to a piece (of its product, found online).
+- **No rules on the AI.** An AI can change anything the person can; the server doesn't check who wrote what. Don't add restrictions or guardrails the owner didn't ask for. The AI's instructions (`server/src/mcp.ts`) ask it to save its tags as suggestions for the person to confirm; keep them and the tool descriptions truthful.
 - **Everything is attributed and undoable**, through the change log.
 - **Privacy.** No sign-up, analytics, crash reporting, ads or third-party SDKs. The privacy manifest declares exactly photos and user content, unlinked, for app functionality; `scripts/verify-ios-bundle.py` checks the built app.
 
@@ -61,7 +60,7 @@ python3 scripts/verify-ios-bundle.py ios/DerivedData-Release/Build/Products/Rele
 ## Testing expectations
 
 - Change a record shape: update `server/src/schema.ts` and `PutiaCore/Records.swift` together, with tests on both sides.
-- Change who may do what: `server/test/store.test.ts`, and `server/test/e2e.mjs` for anything an AI does through MCP.
+- Change what an AI can do through MCP: `server/test/e2e.mjs`.
 - New user-facing actions get a UI test that reaches them in CI; UI tests find elements by accessibility identifier and pass in both languages.
 - Keep `scripts/test_testflight_ci.py` passing when changing release scripts. It must never call real Apple tools or use real credentials.
 

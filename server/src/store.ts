@@ -1,8 +1,10 @@
-import { applyRules, type Actor, mayDelete, mayUndo, RuleError } from "./rules";
 import { type Data, isKind, type Kind, referencedIds, validate } from "./schema";
 
-// The shared records for one account. Every write is checked (shape, who may do it, references),
-// compared against the revision the writer saw, and recorded in the change log in one transaction.
+// The shared records for one account. Every write is checked (shape and references), compared
+// against the revision the writer saw, and recorded in the change log in one transaction.
+
+/** Who made a change: "human" (the app) or "agent:<connector name>". */
+export type Actor = string;
 
 export interface State {
   deleted: boolean;
@@ -145,13 +147,10 @@ export class Store {
 
     const checked = validate(input.kind, input.data);
     if (!checked.ok) throw new Invalid(checked.problems);
-    // Permissions may rewrite the data (an agent's values become suggestions), so check the shape again.
-    const ruled = validate(input.kind, applyRules(input.kind, input.actor, current?.data ?? null, checked.data));
-    if (!ruled.ok) throw new Invalid(ruled.problems);
-    await this.checkReferences(input.kind, input.id, ruled.data);
+    await this.checkReferences(input.kind, input.id, checked.data);
 
     const before: State | null = current ? { deleted: false, data: current.data } : null;
-    const after: State = { deleted: false, data: ruled.data };
+    const after: State = { deleted: false, data: checked.data };
     const seq = await this.commit({
       kind: input.kind,
       id: input.id,
@@ -173,9 +172,6 @@ export class Store {
     const current = await this.get(kind, id);
     if (!current || current.deleted) throw new NotFound(`No ${kind} with id ${id}.`);
     if (baseRevision !== current.revision) throw new Conflict(current);
-    if (!mayDelete(actor, current.createdBy)) {
-      throw new RuleError("Only the person can delete things they made. You can delete your own proposals.");
-    }
     const seq = await this.commit({
       kind,
       id,
@@ -196,7 +192,6 @@ export class Store {
   async undo(seq: number, actor: Actor): Promise<{ doc: Doc; seq: number }> {
     const change = await this.change(seq);
     if (!change) throw new NotFound(`No change #${seq}.`);
-    if (!mayUndo(actor, change.actor)) throw new RuleError("You can only undo changes made by AI. The person can undo anything.");
     const current = await this.get(change.kind, change.id);
     if (!current || current.revision !== change.revision) {
       throw new Conflict(current, `Change #${seq} can't be undone: the record changed after it.`);

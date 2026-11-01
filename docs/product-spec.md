@@ -9,9 +9,9 @@ Status: first vertical slice. §9 lists what the slice covers. Everything is kep
 ## 1. Principles
 
 - **One bench, two people.** Everything the AI does is a saved, attributed change on the same records you see. Nothing lives only in a chat.
-- **Honest evidence.** A photo cannot establish exact material, true colour, size or comfort. Any tag the AI sets is a *suggestion* you confirm or correct. Material and cut are never shown as facts unless you confirmed them.
+- **Honest evidence.** A photo cannot establish exact material, true colour, size or comfort. The AI saves the tags it sets as *suggestions* you confirm or correct.
 - **Owned, wanted and inspiring are different things.** Pieces you own, pieces you might buy and inspiration images never mix.
-- **Proposed → tried → favourite.** A collage helps explore; wearing it tells whether it works. Only you can say an outfit was tried or is a favourite.
+- **Proposed → tried → favourite.** A collage helps explore; wearing it tells whether it works.
 - **Valid conclusions include "nothing needed".** Trying a different combination of what you own is a legitimate answer to "what's missing".
 - **Reversible.** Every change has a history and can be undone.
 - **Plain and quick.** Adding a piece takes seconds. No inventory form.
@@ -36,7 +36,7 @@ An outfit is a set of owned pieces, shown as a large collage.
 
 - **Assemble** an outfit from owned pieces, and edit its title and pieces later.
 - **Proposals from the AI** ("make three outfits around this jacket using what I own") come with a note: the intended effect, silhouette and textures, and what a collage can't show.
-- **Stages:** `proposed` (anyone can create), `tried` and `favourite` (only you).
+- **Stages:** `proposed`, `tried` and `favourite`.
 - **Photos and comments** stay with the outfit: a mirror photo, how it went, the AI's assessment.
 
 The AI follows the assessment approach in `docs/styling/`: it judges the whole combination, names the smallest sufficient change, separates observation from preference, and does not hand out rules, scores or flattery.
@@ -49,14 +49,14 @@ An inspiration image is not an outfit and not a purchase. You save it with a tit
 
 Never a generic list of essentials. Suggestions come from the actual wardrobe.
 
-A shortlist entry (a *wish*) has a name, a note on the problem it solves in terms of what you own, an optional link, and a status: `considering`, `bought` or `dismissed` (only you decide those two). A wish never turns into a piece by itself.
+A shortlist entry (a *wish*) has a name, a note on the problem it solves in terms of what you own, an optional link, and a status: `considering`, `bought` or `dismissed`. A wish never turns into a piece by itself.
 
 A **review** records a conclusion: `gaps`, `try-combinations` or `nothing-needed`, with a short summary. All three are first-class results.
 
 ## 6. Collaboration
 
 - The app and the AI read and write the same server-held records. Offline, the app shows what it last loaded; changes need a connection.
-- Every change is attributed (you, or the AI by connector name), can carry a reason, and is kept in a history.
+- The AI can change anything you can. Every change is attributed (you, or the AI by connector name), can carry a reason, and is kept in a history.
 - Any change can be undone from the app or by the AI, unless the record has changed since; then the conflict is shown instead of overwritten.
 - Anyone can comment on a piece, outfit, inspiration image or wish.
 - **Connecting an AI:** Bench → Connect an AI shows the connector address and a one-time pairing code. The AI signs in with that code. The Bench lists connected AIs and can disconnect all at once, instantly.

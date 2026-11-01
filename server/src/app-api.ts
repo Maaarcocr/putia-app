@@ -1,7 +1,6 @@
 import { claim, disconnectAgents, listAgents, newPairingCode, pairingStatus } from "./accounts";
 import type { Env } from "./env";
 import { describeError } from "./errors";
-import { HUMAN } from "./rules";
 import { isKind } from "./schema";
 import { Store } from "./store";
 
@@ -51,13 +50,13 @@ export async function handleAppRequest(request: Request, env: Env): Promise<Resp
         const [, kind = "", id = ""] = rest;
         if (!isKind(kind) || !UUID.test(id)) return error(404, "not found");
         const body = (await request.json()) as { baseRevision?: number; data?: unknown; note?: string };
-        const saved = await store.write({ kind, id, actor: HUMAN, baseRevision: body.baseRevision ?? 0, data: body.data, note: body.note });
+        const saved = await store.write({ kind, id, actor: "human", baseRevision: body.baseRevision ?? 0, data: body.data, note: body.note });
         return json(saved.doc);
       }
       case "DELETE docs": {
         const [, kind = "", id = ""] = rest;
         if (!isKind(kind) || !UUID.test(id)) return error(404, "not found");
-        const removed = await store.remove(kind, id, HUMAN, Number(url.searchParams.get("base") ?? "0"));
+        const removed = await store.remove(kind, id, "human", Number(url.searchParams.get("base") ?? "0"));
         return json(removed.doc);
       }
       case "GET history": {
@@ -65,7 +64,7 @@ export async function handleAppRequest(request: Request, env: Env): Promise<Resp
         return json(await store.history({ before, limit: 100 }));
       }
       case "POST undo": {
-        const undone = await store.undo(Number(rest[1]), HUMAN);
+        const undone = await store.undo(Number(rest[1]), "human");
         return json(undone.doc);
       }
       case "PUT photos":

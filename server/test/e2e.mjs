@@ -1,6 +1,6 @@
 // End-to-end check against a local server (`npm run db:local && npx cf dev`):
 //   node test/e2e.mjs [base URL, default http://localhost:5173]
-// The app adds a piece with a photo, an AI pairs and signs in, reads it, suggests tags and proposes
+// The app adds a piece with a photo, an AI pairs and signs in, reads it, renames and tags it, proposes
 // an outfit; the person tries it and comments; the AI records a review; changes are undone.
 import assert from "node:assert/strict";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
@@ -106,7 +106,7 @@ const init = await rpc("initialize", { protocolVersion: "2025-06-18", capabiliti
 assert.match(init.instructions, /wardrobe studio/);
 const tools = (await rpc("tools/list")).tools.map((tool) => tool.name).sort();
 assert.deepEqual(tools, ["add_photo", "comment", "delete", "get", "get_photo", "guidance", "history", "list", "overview",
-  "save_outfit", "save_piece", "save_review", "save_wish", "undo"]);
+  "save_outfit", "save_piece", "save_reference", "save_review", "save_wish", "undo"]);
 assert.match((await call("guidance")).text, /Candid Menswear Assessment/);
 
 const overview = await json("overview");
@@ -117,15 +117,16 @@ assert.equal(photo.type, "image");
 assert.equal(photo.mimeType, "image/png");
 
 const jacket = await json("get", { kind: "piece", id: jacketId });
+const attrs = {
+  category: { value: "jacket", state: "suggested", by: "Test Agent" },
+  material: { value: "cotton canvas", state: "suggested", by: "Test Agent" },
+};
 const tagged = await json("save_piece", {
-  id: jacketId, revision: jacket.revision, note: "Tags from the photo",
-  data: { ...piece("Navy chore jacket"), attrs: {
-    category: { value: "jacket", state: "suggested", by: "ai" },
-    material: { value: "cotton canvas", state: "confirmed", by: "ai" },
-  } },
+  id: jacketId, revision: jacket.revision, note: "Named and tagged from the label",
+  data: { name: "Arpenteur Travail jacket", attrs, mainPhotoId: jacket.mainPhotoId },
 });
-assert.equal(tagged.saved.attrs.material.state, "suggested", "AI tags are suggestions");
-assert.equal(tagged.saved.attrs.material.by, "agent:Test Agent");
+assert.equal(tagged.saved.name, "Arpenteur Travail jacket", "the AI renames the piece");
+assert.deepEqual(tagged.saved.attrs, attrs, "the AI's tags are saved as sent");
 
 // The AI adds a photo of the product it found online (the app icon stands in for a shop's image).
 const repoFile = (path) => `https://raw.githubusercontent.com/Maaarcocr/putia-app/main/${path}`;
@@ -148,8 +149,6 @@ const proposal = await json("save_outfit", {
   },
 });
 const outfitId = proposal.saved.id;
-const refused = await call("save_outfit", { id: outfitId, revision: 1, data: { title: "Soft workwear", stage: "tried", pieceIds: [jacketId] } });
-assert.match(refused.text, /Only the person marks an outfit tried/, "the AI can't mark an outfit tried");
 
 // 4. The person tries it and comments; the AI sees that and records a review.
 const feed = await (await app("/changes?since=0")).json();
@@ -170,11 +169,12 @@ assert.equal(review.saved.conclusion, "nothing-needed");
 const history = await json("history", { limit: 5 });
 assert.equal(history[0].op, "create");
 assert.equal(history[0].kind, "review");
-assert.match((await call("undo", { change: (await (await app("/history")).json()).find((change) => change.kind === "comment").seq })).text, /error/i,
-  "the AI can't undo the person's changes");
-const tagChange = tagged.change;
-const undone = await (await app(`/undo/${tagChange}`, { method: "POST" })).json();
-assert.deepEqual(undone.data.attrs, {}, "the person undoes the AI's tags");
+const commentChange = (await (await app("/history")).json()).find((change) => change.kind === "comment").seq;
+await json("undo", { change: commentChange });
+assert.deepEqual((await json("get", { kind: "outfit", id: outfitId })).comments, [], "the AI undoes the person's comment");
+const undone = await (await app(`/undo/${tagged.change}`, { method: "POST" })).json();
+assert.equal(undone.data.name, "Navy chore jacket", "the person undoes the AI's rename");
+assert.deepEqual(undone.data.attrs, {});
 
 // 6. Disconnecting cuts the AI off at once; deleting removes everything.
 assert.equal((await app("/agents", { method: "DELETE" })).status, 204);

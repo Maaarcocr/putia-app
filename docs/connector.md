@@ -23,22 +23,16 @@ The tools (`server/src/mcp.ts`):
 | `list`, `get` | Records of one kind; one record with its comments and photos (and, for a piece, its outfits) |
 | `get_photo` | A photo as an image: the cut-out thumbnail or the full photo |
 | `add_photo` | A photo for a piece, of its product, that the AI found online: it passes the image's address and a note with the page it's on, and the server downloads it |
-| `save_piece`, `save_outfit`, `save_wish`, `save_review` | Create or update, passing the revision it read |
+| `save_piece`, `save_outfit`, `save_reference`, `save_wish`, `save_review` | Create or update, passing the revision it read |
 | `comment` | A comment on a piece, outfit, inspiration image or shortlist entry |
-| `delete` | Only records the AI created |
-| `history`, `undo` | The change log; undo only changes made by AI |
+| `delete` | Any record (undoable) |
+| `history`, `undo` | The change log; undo any change |
 
-The server enforces what an AI may change (`server/src/rules.ts`), whatever the tool descriptions say:
+An AI can change anything the person can: the server doesn't check who wrote what. Every change is attributed to it, kept in the history and can be undone. Its instructions ask it to save the tags it sets as `suggested`, for the person to confirm, and to propose outfits as `proposed`.
 
-- **Tags are suggestions.** Every tag an AI sets is saved as `suggested` and attributed to it. It can't change a tag the person confirmed (it can comment instead), and can name only an unnamed piece.
-- **Photos.** An AI can add a photo to a piece with `add_photo`: the server downloads it (JPEG, PNG or WebP, up to 8 MB, from public https addresses only). It can't change photos, or delete any but its own. Only the person picks a piece's main photo.
-- **Outfits start as proposals.** An AI creates `proposed` outfits; only the person marks them tried or favourite.
-- **Inspiration is the person's.** An AI comments on an inspiration image, it doesn't change it.
-- **Purchases are the person's call.** An AI can add or update shortlist entries while they're `considering`, but can't mark one bought or dismissed.
-- **Photos, reviews and comments are never edited**, only added. "Nothing needed" is a valid review.
-- **Undo:** an AI undoes only AI changes; the person can undo anything. An undo is refused if the record changed since.
+`add_photo` has the server download the image: JPEG, PNG or WebP, up to 8 MB, from https addresses.
 
-Every write names the revision it was based on. If the person changed the record meanwhile, the AI gets a conflict with the current version and redoes its change on top.
+Every write names the revision it was based on. If the person changed the record meanwhile, the AI gets a conflict with the current version and redoes its change on top. An undo is refused if the record changed since.
 
 ## Styling guidance
 

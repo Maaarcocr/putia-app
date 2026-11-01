@@ -17,8 +17,9 @@ The server stores each record as JSON in one generic table, `docs`, with a **rev
 
 1. names the revision it was based on (0 to create). A stale revision is refused with 409 and the current record, so nobody overwrites a change they haven't seen;
 2. is validated (shape, and that the records it points at exist);
-3. passes the rules for who wrote it (`server/src/rules.ts`): the person (`human`) or an AI (`agent:<name>`). AI tags become suggestions, AI outfits start as proposals, and so on (docs/connector.md);
-4. is recorded in `changes` with the state before and after, the author and an optional note, in the same D1 batch.
+3. is recorded in `changes` with the state before and after, the author (`human`, or `agent:<name>` for an AI) and an optional note, in the same D1 batch.
+
+The person and an AI can change the same things: the server doesn't check who wrote what.
 
 `changes` is at once the history, the source for undo (put back the `before` state, if the record hasn't changed since) and the app's sync feed (`GET changes?since=N` returns every record touched after change N).
 
@@ -34,7 +35,7 @@ TypeScript on Cloudflare Workers. No framework.
 | `src/app-api.ts` | The app's API under `/v1/accounts/:id/` (bearer secret) |
 | `src/mcp.ts` | The MCP tools an AI sees, and their instructions |
 | `src/store.ts` | Records, revisions, the change log, undo and the feed |
-| `src/schema.ts`, `src/rules.ts` | What a record may contain; who may change what |
+| `src/schema.ts` | What a record may contain |
 | `src/accounts.ts` | Accounts (claimed by the first request with a secret), pairing codes, connected AIs |
 | `src/authorize.ts` | The sign-in page an AI opens: asks for the pairing code (English or Italian) |
 | `src/guidance.ts` | Generated from `docs/styling/` by `npm run sync-guidance` |
