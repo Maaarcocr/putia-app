@@ -65,27 +65,27 @@ private func makeModel(_ server: MemoryServer = MemoryServer()) -> AppModel {
     #expect(model.account != before)
 }
 
-@Test func aPhotoFromTheWebCanBeTheMainOneAndDeleted() async throws {
+@Test func anyPhotoOfAPieceCanBeItsMainOne() async throws {
     let server = MemoryServer()
     let model = makeModel(server)
-    let pieceId = AppModel.newId(), ownId = AppModel.newId(), webId = AppModel.newId()
+    let pieceId = AppModel.newId(), ownId = AppModel.newId(), foundId = AppModel.newId()
     try server.write(.piece(Piece(name: "Jacket")), id: pieceId, baseRevision: 0, actor: "human")
-    try server.write(.photo(Photo(ownerKind: .piece, ownerId: pieceId, role: .flat, hasCutout: true)), id: ownId, baseRevision: 0, actor: "human")
-    try server.write(.piece(Piece(name: "Jacket", photoIds: [ownId], heroPhotoId: ownId)), id: pieceId, baseRevision: 1, actor: "human")
-    let source = "https://shop.example/chore-jacket"
-    try server.write(.photo(Photo(ownerKind: .piece, ownerId: pieceId, role: .flat, hasCutout: false, source: source)), id: webId, baseRevision: 0, actor: "agent:Claude")
+    try server.write(.photo(Photo(ownerKind: .piece, ownerId: pieceId)), id: ownId, baseRevision: 0, actor: "human")
+    try server.write(.photo(Photo(ownerKind: .piece, ownerId: pieceId)), id: foundId, baseRevision: 0, actor: "agent:Claude")
     await model.refresh()
+    var piece = try #require(model.library.pieces[pieceId])
+    #expect(model.library.mainPhotoId(of: piece) == ownId, "the first photo until the person picks one")
 
-    await model.setMainPhoto(webId, of: pieceId)
-    #expect(model.library.pieces[pieceId]?.value.heroPhotoId == webId)
-    // Deleting it puts the person's own photo back as the main one.
-    #expect(await model.deleteWebPhoto(webId, of: pieceId))
-    #expect(model.library.pieces[pieceId]?.value.heroPhotoId == ownId)
-    #expect(model.library.webPhotos(of: pieceId).isEmpty)
+    await model.setMainPhoto(foundId, of: pieceId)
+    piece = try #require(model.library.pieces[pieceId])
+    #expect(model.library.mainPhotoId(of: piece) == foundId)
+    // Deleting it puts the first photo back.
+    #expect(await model.delete(.photo, id: foundId, revision: 1))
+    #expect(model.library.mainPhotoId(of: piece) == ownId)
 }
 
 @Test func describesProvenanceAndHistory() {
-    #expect(L10n.provenance(Attribute(["wool"], state: .suggested, by: "agent:Claude")).contains("Claude"))
+    #expect(L10n.provenance(Attribute("wool", state: .suggested, by: "agent:Claude")).contains("Claude"))
     #expect(L10n.author("human") == L10n.you)
     #expect(L10n.madeBy(.agent("Claude")).contains("Claude"))
     let change = Change(seq: 1, kind: .outfit, recordId: "x", op: .create, actor: "agent:Claude", at: "2026-11-01T10:00:00.000Z")

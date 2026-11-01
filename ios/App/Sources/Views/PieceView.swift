@@ -1,8 +1,8 @@
 import PutiaCore
 import SwiftUI
 
-/// One piece: its photo, name, tags with where each came from, colours, notes, the outfits it is
-/// in and the conversation about it.
+/// One piece: its photos, name, tags with who set each, the outfits it's in and the
+/// conversation about it.
 struct PieceView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -10,8 +10,6 @@ struct PieceView: View {
     @State private var name = ""
     @State private var editing: AttributeKey?
     @State private var tagDraft = ""
-    @State private var addingNote = false
-    @State private var noteDraft = ""
     @State private var confirmingDelete = false
 
     var body: some View {
@@ -39,7 +37,7 @@ struct PieceView: View {
                     TagRow(key: key, attribute: piece.value[key]) {
                         update { $0[key]?.state = .confirmed; $0[key]?.by = Author.you.raw }
                     } edit: {
-                        tagDraft = piece.value[key]?.text ?? ""
+                        tagDraft = piece.value[key]?.value ?? ""
                         editing = key
                     }
                 }
@@ -55,57 +53,7 @@ struct PieceView: View {
             } message: { key in
                 Text(L10n.attribute(key))
             }
-            let webPhotos = model.library.webPhotos(of: id)
-            if !webPhotos.isEmpty {
-                Section {
-                    ForEach(webPhotos) { photo in
-                        WebPhotoRow(photo: photo, piece: piece)
-                    }
-                } header: {
-                    Text(L10n.webPhotos)
-                } footer: {
-                    Text(L10n.webPhotosFooter)
-                }
-            }
-            if !piece.value.swatches.isEmpty {
-                Section {
-                    HStack {
-                        ForEach(piece.value.swatches, id: \.hex) { swatch in
-                            Circle()
-                                .fill(Color(hex: swatch.hex) ?? .gray)
-                                .frame(width: 30, height: 30)
-                                .overlay { Circle().stroke(.secondary.opacity(0.3)) }
-                        }
-                    }
-                } header: {
-                    Text(L10n.colours)
-                } footer: {
-                    Text(L10n.coloursFooter)
-                }
-            }
-            Section(L10n.notes) {
-                ForEach(piece.value.notes) { note in
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(note.text)
-                        Text(L10n.author(note.by))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Button(L10n.addNote, systemImage: "plus") {
-                    noteDraft = ""
-                    addingNote = true
-                }
-                .alert(L10n.addNote, isPresented: $addingNote) {
-                    TextField(L10n.note, text: $noteDraft)
-                    Button(L10n.save) {
-                        let text = noteDraft.trimmed
-                        guard !text.isEmpty else { return }
-                        update { $0.notes.append(Note(id: AppModel.newId(), text: text, by: Author.you.raw, at: Date.now.ISO8601Format())) }
-                    }
-                    Button(L10n.cancel, role: .cancel) {}
-                }
-            }
+            PhotosSection(owner: .piece, ownerId: id)
             let outfits = model.library.outfits(using: id)
             if !outfits.isEmpty {
                 Section(L10n.usedIn) {
@@ -116,9 +64,6 @@ struct PieceView: View {
             }
             CommentsSection(subjectKind: .piece, subjectId: id)
             Section {
-                Button(piece.value.status == .owned ? L10n.retire : L10n.bringBack) {
-                    update { $0.status = $0.status == .owned ? .retired : .owned }
-                }
                 Button(L10n.delete, role: .destructive) { confirmingDelete = true }
                     .alert(L10n.deletePieceTitle, isPresented: $confirmingDelete) {
                         Button(L10n.delete, role: .destructive) {
@@ -138,10 +83,10 @@ struct PieceView: View {
         .onChange(of: piece.value.name) { _, newName in name = newName }
     }
 
-    /// A tag the person sets or edits is confirmed by them. Commas separate several values.
+    /// A tag the person sets or edits is confirmed by them.
     private func saveTag(_ key: AttributeKey) {
-        let values = tagDraft.split(separator: ",").map { String($0).trimmed }.filter { !$0.isEmpty }
-        update { $0[key] = values.isEmpty ? nil : Attribute(values, state: .confirmed, by: Author.you.raw) }
+        let value = tagDraft.trimmed
+        update { $0[key] = value.isEmpty ? nil : Attribute(value, state: .confirmed, by: Author.you.raw) }
     }
 
     /// Changes the latest version of the piece and saves it.
@@ -151,50 +96,6 @@ struct PieceView: View {
         change(&value)
         guard value != piece.value else { return }
         Task { await model.save(.piece(value), id: id, revision: piece.revision) }
-    }
-}
-
-/// A photo of the piece's product that an AI found online: who found it and where, and the
-/// person's choices about it.
-private struct WebPhotoRow: View {
-    @Environment(AppModel.self) private var model
-    let photo: Record<Photo>
-    let piece: Record<Piece>
-    @State private var confirmingDelete = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            PhotoView(photoId: photo.id)
-                .frame(height: 180)
-            Text(L10n.foundBy(L10n.author(photo.createdBy)))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if let source = photo.value.source, let url = URL(string: source) {
-                Link(url.host() ?? source, destination: url)
-                    .font(.caption)
-            }
-            HStack {
-                if piece.value.heroPhotoId != photo.id {
-                    Button(L10n.useAsMainPhoto) { Task { await model.setMainPhoto(photo.id, of: piece.id) } }
-                        .accessibilityIdentifier("piece.webPhoto.useAsMain")
-                } else if !piece.value.photoIds.isEmpty {
-                    Button(L10n.useYourPhoto) { Task { await model.setMainPhoto(nil, of: piece.id) } }
-                        .accessibilityIdentifier("piece.webPhoto.useYours")
-                }
-                Spacer()
-                Button(L10n.delete, role: .destructive) { confirmingDelete = true }
-                    .accessibilityIdentifier("piece.webPhoto.delete")
-                    .alert(L10n.deleteWebPhotoTitle, isPresented: $confirmingDelete) {
-                        Button(L10n.delete, role: .destructive) { Task { await model.deleteWebPhoto(photo.id, of: piece.id) } }
-                        Button(L10n.cancel, role: .cancel) {}
-                    } message: {
-                        Text(L10n.deleteUndoable)
-                    }
-            }
-            // Separate tap targets inside one list row.
-            .buttonStyle(.borderless)
-        }
-        .padding(.vertical, 4)
     }
 }
 
@@ -211,7 +112,7 @@ private struct TagRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if let attribute {
-                    Text(attribute.text)
+                    Text(attribute.value)
                     Text(L10n.provenance(attribute))
                         .font(.caption2)
                         .foregroundStyle(attribute.state == .confirmed ? Color.secondary : Color.orange)

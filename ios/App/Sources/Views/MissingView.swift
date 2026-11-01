@@ -34,6 +34,10 @@ struct MissingView: View {
                             .accessibilityIdentifier("missing.wish")
                     }
                     Button(L10n.addWish, systemImage: "plus") { addingWish = true }
+                        .sheet(isPresented: $addingWish) {
+                            WishEditor(wish: nil) { id in path.append(.wish(id)) }
+                                .environment(model)
+                        }
                 } header: {
                     Text(L10n.shortlist)
                 } footer: {
@@ -43,7 +47,7 @@ struct MissingView: View {
                     ForEach(model.library.inspiration) { reference in
                         NavigationLink(value: Route.reference(reference.id)) {
                             HStack(spacing: 12) {
-                                PhotoView(photoId: reference.value.photoIds.first)
+                                PhotoView(photoId: model.library.photos(of: reference.id).first?.id)
                                     .frame(width: 52, height: 52)
                                     .clipShape(.rect(cornerRadius: 8))
                                 Text(reference.value.title)
@@ -66,10 +70,6 @@ struct MissingView: View {
                 }
             }
             .navigationTitle(L10n.tabMissing)
-            .sheet(isPresented: $addingWish) {
-                WishEditor(wish: nil) { id in path.append(.wish(id)) }
-                    .environment(model)
-            }
             .onChange(of: pick) { _, item in
                 guard let item else { return }
                 pick = nil
@@ -92,19 +92,21 @@ private struct WishRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(wish.value.name)
-            Text([L10n.priority(wish.value.priority), L10n.status(wish.value.status)].joined(separator: " · "))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if let problem = wish.value.problem {
-                Text(problem)
+            if wish.value.status != .considering {
+                Text(L10n.status(wish.value.status))
                     .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if let note = wish.value.note {
+                Text(note)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
         }
     }
 }
 
-/// A shortlist entry: what it solves, what it goes with, what's already owned that might do.
+/// A shortlist entry: what it would solve, and where to find it.
 struct WishView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -125,14 +127,6 @@ struct WishView: View {
             Section {
                 Text(wish.value.name)
                     .font(.title3.bold())
-                if let description = wish.value.description {
-                    Text(description)
-                }
-                Picker(L10n.priorityLabel, selection: Binding(get: { wish.value.priority }, set: { value in update { $0.priority = value } })) {
-                    ForEach(Wish.Priority.allCases, id: \.self) { priority in
-                        Text(L10n.priority(priority)).tag(priority)
-                    }
-                }
                 Picker(L10n.statusLabel, selection: Binding(get: { wish.value.status }, set: { value in update { $0.status = value } })) {
                     ForEach(Wish.Status.allCases, id: \.self) { status in
                         Text(L10n.status(status)).tag(status)
@@ -142,18 +136,8 @@ struct WishView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            if let problem = wish.value.problem {
-                Section(L10n.problem) { Text(problem) }
-            }
-            pieces(L10n.complements, wish.value.complementsPieceIds)
-            pieces(L10n.ownedAlternatives, wish.value.alternativesOwnedIds)
-            let outfits = wish.value.outfitsToTryIds.compactMap { model.library.outfits[$0] }
-            if !outfits.isEmpty {
-                Section(L10n.tryFirst) {
-                    ForEach(outfits) { outfit in
-                        NavigationLink(outfit.value.title, value: Route.outfit(outfit.id))
-                    }
-                }
+            if let note = wish.value.note {
+                Section(L10n.problem) { Text(note) }
             }
             if let link = wish.value.link, let url = URL(string: link) {
                 Section {
@@ -184,18 +168,6 @@ struct WishView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    @ViewBuilder
-    private func pieces(_ title: String, _ ids: [String]) -> some View {
-        let pieces = ids.compactMap { model.library.pieces[$0] }
-        if !pieces.isEmpty {
-            Section(title) {
-                ForEach(pieces) { piece in
-                    NavigationLink(value: Route.piece(piece.id)) { PieceRow(piece: piece) }
-                }
-            }
-        }
-    }
-
     private func update(_ change: (inout Wish) -> Void) {
         guard let wish = model.library.wishes[id] else { return }
         var value = wish.value
@@ -205,28 +177,22 @@ struct WishView: View {
     }
 }
 
-/// Adds a shortlist entry, or edits its name, problem and priority.
+/// Adds a shortlist entry, or edits its name and why.
 private struct WishEditor: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     let wish: Record<Wish>?
-    let created: (String) -> Void
+    let saved: (String) -> Void
     @State private var name = ""
-    @State private var problem = ""
-    @State private var priority = Wish.Priority.medium
+    @State private var note = ""
 
     var body: some View {
         NavigationStack {
             Form {
                 TextField(L10n.wishName, text: $name)
                     .accessibilityIdentifier("wish.name")
-                TextField(L10n.problemHint, text: $problem, axis: .vertical)
+                TextField(L10n.problemHint, text: $note, axis: .vertical)
                     .lineLimit(3...6)
-                Picker(L10n.priorityLabel, selection: $priority) {
-                    ForEach(Wish.Priority.allCases, id: \.self) { priority in
-                        Text(L10n.priority(priority)).tag(priority)
-                    }
-                }
             }
             .navigationTitle(wish == nil ? L10n.addWish : L10n.edit)
             .navigationBarTitleDisplayMode(.inline)
@@ -243,33 +209,30 @@ private struct WishEditor: View {
             .onAppear {
                 guard let wish else { return }
                 name = wish.value.name
-                problem = wish.value.problem ?? ""
-                priority = wish.value.priority
+                note = wish.value.note ?? ""
             }
         }
     }
 
     private func save() {
-        var value = wish?.value ?? Wish(name: name.trimmed)
+        var value = wish?.value ?? Wish(name: "")
         value.name = name.trimmed
-        value.problem = problem.trimmed.isEmpty ? nil : problem.trimmed
-        value.priority = priority
+        value.note = note.trimmed.isEmpty ? nil : note.trimmed
         Task {
-            let saved: String?
+            let id: String?
             if let wish {
-                saved = await model.save(.wish(value), id: wish.id, revision: wish.revision)?.id
+                id = await model.save(.wish(value), id: wish.id, revision: wish.revision)?.id
             } else {
-                saved = await model.create(.wish(value))
+                id = await model.create(.wish(value))
             }
-            guard let saved else { return }
+            guard let id else { return }
             dismiss()
-            created(saved)
+            saved(id)
         }
     }
 }
 
-/// An inspiration image: what draws the person to it, and how owned pieces could carry the same
-/// relationship (usually written by an AI).
+/// An inspiration image: what the person likes about it, and the conversation about it.
 struct ReferenceView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -289,11 +252,6 @@ struct ReferenceView: View {
     private func content(_ reference: Record<Reference>) -> some View {
         List {
             Section {
-                ForEach(reference.value.photoIds, id: \.self) { photoId in
-                    PhotoView(photoId: photoId, size: .full)
-                        .frame(height: 320)
-                        .listRowInsets(EdgeInsets())
-                }
                 TextField(L10n.referenceTitle, text: $title)
                     .font(.title3.bold())
                     .submitLabel(.done)
@@ -301,43 +259,11 @@ struct ReferenceView: View {
                         guard !title.trimmed.isEmpty else { return }
                         update { $0.title = title.trimmed }
                     }
-            }
-            Section {
-                ForEach(Reference.Attraction.allCases, id: \.self) { attraction in
-                    Toggle(L10n.attraction(attraction), isOn: Binding(
-                        get: { reference.value.attraction.contains(attraction) },
-                        set: { on in
-                            update {
-                                $0.attraction.removeAll { $0 == attraction }
-                                if on { $0.attraction.append(attraction) }
-                            }
-                        }
-                    ))
-                }
-            } header: {
-                Text(L10n.whatDrawsYou)
-            } footer: {
-                Text(L10n.attractionFooter)
-            }
-            Section(L10n.note) {
-                TextField(L10n.noteHint, text: $note)
+                TextField(L10n.referenceNoteHint, text: $note)
                     .submitLabel(.done)
                     .onSubmit { update { $0.note = note.trimmed.isEmpty ? nil : note.trimmed } }
             }
-            Section(L10n.translation) {
-                if let translation = reference.value.translation {
-                    Text(translation.text)
-                    ForEach(translation.pieceIds.compactMap { model.library.pieces[$0] }) { piece in
-                        NavigationLink(value: Route.piece(piece.id)) { PieceRow(piece: piece) }
-                    }
-                    ForEach(translation.outfitIds.compactMap { model.library.outfits[$0] }) { outfit in
-                        NavigationLink(outfit.value.title, value: Route.outfit(outfit.id))
-                    }
-                } else {
-                    Text(L10n.noTranslation)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            PhotosSection(owner: .reference, ownerId: id)
             CommentsSection(subjectKind: .reference, subjectId: id)
             Section {
                 Button(L10n.delete, role: .destructive) { confirmingDelete = true }

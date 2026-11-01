@@ -1,3 +1,4 @@
+import PhotosUI
 import PutiaCore
 import SwiftUI
 
@@ -5,8 +6,6 @@ import SwiftUI
 nonisolated enum Route: Hashable, Sendable {
     case piece(String)
     case outfit(String)
-    /// An outfit and a variation of it, side by side.
-    case compare(String, String)
     case wish(String)
     case reference(String)
 }
@@ -18,19 +17,10 @@ extension View {
             switch route {
             case .piece(let id): PieceView(id: id)
             case .outfit(let id): OutfitView(id: id)
-            case .compare(let left, let right): CompareView(leftId: left, rightId: right)
             case .wish(let id): WishView(id: id)
             case .reference(let id): ReferenceView(id: id)
             }
         }
-    }
-}
-
-extension Color {
-    /// A colour from "#rrggbb".
-    init?(hex: String?) {
-        guard let hex, hex.count == 7, hex.hasPrefix("#"), let value = Int(hex.dropFirst(), radix: 16) else { return nil }
-        self.init(red: Double(value >> 16 & 0xff) / 255, green: Double(value >> 8 & 0xff) / 255, blue: Double(value & 0xff) / 255)
     }
 }
 
@@ -67,15 +57,15 @@ struct PhotoView: View {
     }
 }
 
-/// A piece's cut-out on a tint of its own colour.
+/// A piece's main photo.
 struct PieceImage: View {
     @Environment(AppModel.self) private var model
     let piece: Record<Piece>?
 
     var body: some View {
-        PhotoView(photoId: piece.flatMap { model.library.heroPhotoId(of: $0.value) })
+        PhotoView(photoId: piece.flatMap { model.library.mainPhotoId(of: $0) })
             .padding(6)
-            .background((Color(hex: piece?.value.swatches.first?.hex) ?? .gray).opacity(0.18), in: .rect(cornerRadius: 12))
+            .background(.background.secondary, in: .rect(cornerRadius: 12))
     }
 }
 
@@ -100,7 +90,7 @@ struct Collage: View {
 
     var body: some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-            ForEach(Array(pieceIds.enumerated()), id: \.offset) { _, id in
+            ForEach(pieceIds, id: \.self) { id in
                 PieceImage(piece: model.library.pieces[id])
                     .frame(height: height)
             }
@@ -108,24 +98,70 @@ struct Collage: View {
     }
 }
 
-/// A labelled paragraph, shown only when there is text.
-struct LabeledText: View {
-    let label: String
-    let text: String?
+/// A record's photos, each of which can be deleted, and a button to add one. A piece's photo can
+/// be made its main one.
+struct PhotosSection: View {
+    @Environment(AppModel.self) private var model
+    let owner: Kind
+    let ownerId: String
+    @State private var pick: PhotosPickerItem?
 
     var body: some View {
-        if let text, !text.isEmpty {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(label)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(text)
+        Section(L10n.photos) {
+            ForEach(model.library.photos(of: ownerId)) { photo in
+                PhotoRow(photo: photo)
+            }
+            PhotosPicker(selection: $pick, matching: .images) {
+                Label(L10n.addPhoto, systemImage: "photo.badge.plus")
+            }
+            .accessibilityIdentifier("photos.add")
+            if model.working {
+                ProgressView(L10n.preparingPhoto)
+            }
+        }
+        .onChange(of: pick) { _, item in
+            guard let item else { return }
+            pick = nil
+            Task {
+                guard let data = try? await item.loadTransferable(type: Data.self) else { return }
+                await model.addPhoto(data, to: owner, ownerId: ownerId)
             }
         }
     }
 }
 
-/// The conversation on a record: the person's comments and reactions, and the AI's.
+private struct PhotoRow: View {
+    @Environment(AppModel.self) private var model
+    let photo: Record<Photo>
+    @State private var confirmingDelete = false
+
+    var body: some View {
+        VStack(spacing: 8) {
+            PhotoView(photoId: photo.id)
+                .frame(height: 180)
+            HStack {
+                if photo.value.ownerKind == .piece, let piece = model.library.pieces[photo.value.ownerId], model.library.mainPhotoId(of: piece) != photo.id {
+                    Button(L10n.useAsMainPhoto) { Task { await model.setMainPhoto(photo.id, of: piece.id) } }
+                        .accessibilityIdentifier("photo.useAsMain.\(photo.id)")
+                }
+                Spacer()
+                Button(L10n.delete, role: .destructive) { confirmingDelete = true }
+                    .accessibilityIdentifier("photo.delete")
+                    .alert(L10n.deletePhotoTitle, isPresented: $confirmingDelete) {
+                        Button(L10n.delete, role: .destructive) { Task { await model.delete(.photo, id: photo.id, revision: photo.revision) } }
+                        Button(L10n.cancel, role: .cancel) {}
+                    } message: {
+                        Text(L10n.deleteUndoable)
+                    }
+            }
+            // Separate tap targets inside one list row.
+            .buttonStyle(.borderless)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+/// The conversation on a record: the person's comments and the AI's.
 struct CommentsSection: View {
     @Environment(AppModel.self) private var model
     let subjectKind: Kind
@@ -136,7 +172,7 @@ struct CommentsSection: View {
         Section(L10n.comments) {
             ForEach(model.library.comments(on: subjectId)) { comment in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(L10n.commentHeader(comment.value))
+                    Text(L10n.author(comment.createdBy))
                         .font(.caption.bold())
                         .foregroundStyle(.secondary)
                     Text(comment.value.text)

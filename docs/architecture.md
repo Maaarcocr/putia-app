@@ -39,25 +39,25 @@ TypeScript on Cloudflare Workers. No framework.
 | `src/authorize.ts` | The sign-in page an AI opens: asks for the pairing code (English or Italian) |
 | `src/guidance.ts` | Generated from `docs/styling/` by `npm run sync-guidance` |
 
-Tests: `test/store.test.ts` and `test/guidance.test.ts` run with vitest on Node's built-in SQLite standing in for D1 (`test/d1.ts`), so the real SQL runs. `test/e2e.mjs` drives a local Worker through the whole loop: the app adds a piece and photo, an AI pairs, signs in, suggests tags and proposes an outfit, the person tries it and reacts, the AI records a review, both sides undo, and disconnecting and deleting cut everything off.
+Tests: `test/store.test.ts` and `test/guidance.test.ts` run with vitest on Node's built-in SQLite standing in for D1 (`test/d1.ts`), so the real SQL runs. `test/e2e.mjs` drives a local Worker through the whole loop: the app adds a piece and photo, an AI pairs, signs in, suggests tags and proposes an outfit, the AI adds a photo it found online, the person tries the outfit and comments, the AI records a review, both sides undo, and disconnecting and deleting cut everything off.
 
 ## App (`ios/`)
 
 Swift 6, SwiftUI with Observation, iOS 26+, iPhone only. XcodeGen generates the project from `ios/project.yml`.
 
-- **`PutiaCore`** (Foundation only, builds and tests on Linux): the record types, `Library` (every record, as last loaded, with what the screens ask of it), `Change` and colour measurement (`Swatches`).
-- **`PutiaImaging`** (Apple platforms): the cut-out (Vision's foreground mask), thumbnails, colours from the cut-out and a category guess (Vision's classifier), all on the phone and off the main actor.
+- **`PutiaCore`** (Foundation only, builds and tests on Linux): the record types, `Library` (every record, as last loaded, with what the screens ask of it) and `Change`.
+- **`PutiaImaging`** (Apple platforms): the cut-out (Vision's foreground mask) and thumbnails, on the phone.
 - **The app target**: `AppModel` (the one observable model), the server client (`HTTPServer`, and `MemoryServer` for tests and UI tests), the Keychain account, and the screens. App code defaults to the main actor.
 
 **Online first.** The app shows the `Library` it last loaded (cached as JSON on disk, photos too) and refreshes every 15 seconds while open, when it becomes active and on pull to refresh. Every change goes straight to the server; if it can't be saved, an alert says why: no connection, or someone (the AI) changed the record first, in which case the app shows the latest version so the person can redo their change. There is no offline queue.
 
 **The account** is a random id and secret made on the phone and kept in the Keychain (synced by iCloud Keychain). No sign-up. "Delete everything" deletes it on the server with all records and photos, and starts a new one.
 
-**Adding a piece**: pick a photo → `Imaging.prepare` (cut-out, thumbnail, colours, category guess) → save the piece with the phone's suggestions (`by: "device"`, state `suggested`) → upload the photo → save the photo record → point the piece at it. Material and cut are never guessed.
+**Photos** belong to a piece, outfit or inspiration image through the photo record's `ownerId`; a piece's `mainPhotoId` picks the one it's shown with (the first, without one). **Adding a piece**: pick a photo → save an empty piece → `Imaging.prepare` (cut-out and thumbnail) → upload the photo → save the photo record. Further photos are added the same way, without the cut-out.
 
 **Strings**: every user-facing string is in `Support/L10n.swift`, with English and Italian in `Resources/Localizable.xcstrings`. `scripts/check-strings.py` fails CI on a missing translation, an unused key, or a raw literal in a SwiftUI text API.
 
-**Tests**: `PutiaCoreTests` (decoding the server's JSON, the library, encoding, swaps, colours), `PutiaImagingTests`, `PutiaTests` (the app model against `MemoryServer`: saving, conflicts, undo, offline, deleting) and `PutiaUITests` (the main flow on a sample wardrobe, with screenshots), in English and Italian.
+**Tests**: `PutiaCoreTests` (decoding the server's JSON, the library, encoding, main photos), `PutiaImagingTests`, `PutiaTests` (the app model against `MemoryServer`: saving, conflicts, undo, offline, deleting) and `PutiaUITests` (the main flow on a sample wardrobe, with screenshots), in English and Italian.
 
 ## Deploying
 

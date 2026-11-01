@@ -57,11 +57,6 @@ final class AppModel {
         UUID().uuidString.lowercased()
     }
 
-    /// Today as the server stores days worn.
-    static func today() -> String {
-        Date.now.formatted(Date.ISO8601FormatStyle(timeZone: .current).year().month().day())
-    }
-
     // MARK: Records
 
     /// Loads what changed on the bench since the last refresh, whoever changed it.
@@ -95,6 +90,7 @@ final class AppModel {
     }
 
     /// Deletes a record. It stays in the history and can be undone.
+    @discardableResult
     func delete(_ kind: Kind, id: String, revision: Int) async -> Bool {
         do {
             library.apply(try await server.delete(kind, id: id, baseRevision: revision, account: account))
@@ -146,100 +142,50 @@ final class AppModel {
 
     // MARK: Photos
 
-    /// Adds a piece from a photo: cut out, measured and saved in a few seconds. Returns its id.
+    /// Adds a piece from a photo, cut out on the phone. Returns its id.
     func addPiece(from data: Data) async -> String? {
-        working = true
-        defer { working = false }
-        guard let prepared = try? await Imaging.prepare(data, cutOut: true) else {
-            problem = .unreadablePhoto
-            return nil
-        }
-        // Suggestions from the phone, in the person's language. Material and cut are never guessed.
-        var piece = Piece(swatches: prepared.swatches)
-        if let category = prepared.category {
-            piece[.category] = Attribute([L10n.category(category)], state: .suggested, by: Author.device.raw)
-        }
-        if let hex = prepared.swatches.first?.hex, let name = Swatches.nearestName(hex: hex) {
-            piece[.colour] = Attribute([L10n.colourName(name)], state: .suggested, by: Author.device.raw)
-        }
-        // The piece, then its photo (which points at the piece), then the piece pointing at the photo.
-        let pieceId = Self.newId()
-        guard let created = await save(.piece(piece), id: pieceId, revision: 0),
-              let photoId = await addPhoto(prepared, owner: .piece, ownerId: pieceId, role: .flat)
+        guard let pieceId = await create(.piece(Piece())),
+              await addPhoto(data, to: .piece, ownerId: pieceId, cutOut: true)
         else { return nil }
-        piece.photoIds = [photoId]
-        piece.heroPhotoId = photoId
-        await save(.piece(piece), id: pieceId, revision: created.revision)
         return pieceId
     }
 
-    /// Adds a photo of the person wearing an outfit.
-    func addMirrorPhoto(_ data: Data, toOutfit outfitId: String) async {
-        working = true
-        defer { working = false }
-        guard let prepared = try? await Imaging.prepare(data, cutOut: false) else {
-            problem = .unreadablePhoto
-            return
-        }
-        guard let photoId = await addPhoto(prepared, owner: .outfit, ownerId: outfitId, role: .mirror),
-              let outfit = library.outfits[outfitId]
-        else { return }
-        var value = outfit.value
-        value.photoIds.append(photoId)
-        await save(.outfit(value), id: outfitId, revision: outfit.revision)
-    }
-
-    /// Adds an inspiration image. Returns the new reference's id.
+    /// Adds an inspiration image. Returns its id.
     func addInspiration(_ data: Data) async -> String? {
-        working = true
-        defer { working = false }
-        guard let prepared = try? await Imaging.prepare(data, cutOut: false) else {
-            problem = .unreadablePhoto
-            return nil
-        }
-        let referenceId = Self.newId()
-        var reference = Reference(title: L10n.untitledInspiration)
-        guard let created = await save(.reference(reference), id: referenceId, revision: 0),
-              let photoId = await addPhoto(prepared, owner: .reference, ownerId: referenceId, role: .inspiration)
+        guard let referenceId = await create(.reference(Reference(title: L10n.untitledInspiration))),
+              await addPhoto(data, to: .reference, ownerId: referenceId)
         else { return nil }
-        reference.photoIds = [photoId]
-        await save(.reference(reference), id: referenceId, revision: created.revision)
         return referenceId
     }
 
-    private func addPhoto(_ prepared: PreparedPhoto, owner: Kind, ownerId: String, role: Photo.Role) async -> String? {
+    /// Adds a photo to a piece, an outfit or an inspiration image. Returns whether it was saved.
+    @discardableResult
+    func addPhoto(_ data: Data, to owner: Kind, ownerId: String, cutOut: Bool = false) async -> Bool {
+        working = true
+        defer { working = false }
+        guard let prepared = try? await Imaging.prepare(data, cutOut: cutOut) else {
+            problem = .unreadablePhoto
+            return false
+        }
         let photoId = Self.newId()
         do {
             try await server.putPhoto(prepared.thumb, type: prepared.thumbType, id: photoId, size: .thumb, account: account)
             try await server.putPhoto(prepared.full, type: "image/jpeg", id: photoId, size: .full, account: account)
         } catch {
             report(error)
-            return nil
+            return false
         }
         keep(prepared.thumb, photoId, .thumb)
         keep(prepared.full, photoId, .full)
-        let photo = Photo(ownerKind: owner, ownerId: ownerId, role: role, hasCutout: prepared.hasCutout, width: prepared.width, height: prepared.height)
-        return await save(.photo(photo), id: photoId, revision: 0)?.id
+        return await save(.photo(Photo(ownerKind: owner, ownerId: ownerId)), id: photoId, revision: 0) != nil
     }
 
-    /// Makes a photo the piece's main one, or puts the person's own photo back when nil.
-    func setMainPhoto(_ photoId: String?, of pieceId: String) async {
+    /// Makes a photo the piece's main one.
+    func setMainPhoto(_ photoId: String, of pieceId: String) async {
         guard let piece = library.pieces[pieceId] else { return }
         var value = piece.value
-        value.heroPhotoId = photoId ?? value.photoIds.first
+        value.mainPhotoId = photoId
         await save(.piece(value), id: pieceId, revision: piece.revision)
-    }
-
-    /// Deletes a photo an AI found online. If it is the piece's main photo, the person's own photo
-    /// becomes the main one first. Returns whether it was deleted.
-    @discardableResult
-    func deleteWebPhoto(_ photoId: String, of pieceId: String) async -> Bool {
-        if library.pieces[pieceId]?.value.heroPhotoId == photoId {
-            await setMainPhoto(nil, of: pieceId)
-            guard library.pieces[pieceId]?.value.heroPhotoId != photoId else { return false }
-        }
-        guard let photo = library.photos[photoId] else { return false }
-        return await delete(.photo, id: photoId, revision: photo.revision)
     }
 
     /// A photo, from memory, the disk cache or the server.

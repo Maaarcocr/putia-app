@@ -9,26 +9,11 @@ let store: Store;
 let ids = 0;
 const newId = () => `00000000-0000-4000-8000-${String(++ids).padStart(12, "0")}`;
 
-const piece = (overrides: Record<string, unknown> = {}) => ({
-  name: "Navy chore jacket",
-  status: "owned",
-  attrs: {},
-  swatches: [{ hex: "#1f2a44" }],
-  notes: [],
-  photoIds: [],
-  ...overrides,
-});
+const piece = (overrides: Record<string, unknown> = {}) => ({ name: "Navy chore jacket", attrs: {}, ...overrides });
 
-const outfit = (pieceIds: string[], overrides: Record<string, unknown> = {}) => ({
-  title: "Soft workwear",
-  stage: "proposed",
-  items: pieceIds.map((pieceId) => ({ pieceId, role: "other" })),
-  photoIds: [],
-  wornOn: [],
-  ...overrides,
-});
+const outfit = (pieceIds: string[], overrides: Record<string, unknown> = {}) => ({ title: "Soft workwear", stage: "proposed", pieceIds, ...overrides });
 
-async function create(kind: "piece" | "outfit" | "wish" | "review" | "comment", data: unknown, actor = "human") {
+async function create(kind: "piece" | "outfit" | "reference" | "wish" | "review" | "comment", data: unknown, actor = "human") {
   const id = newId();
   return (await store.write({ kind, id, actor, baseRevision: 0, data })).doc;
 }
@@ -61,17 +46,16 @@ describe("revisions and conflicts", () => {
 });
 
 describe("what the AI may do", () => {
-  it("saves the AI's tags as suggestions and keeps the person's photos, notes and colours", async () => {
+  it("saves the AI's tags as suggestions", async () => {
     const jacket = await create("piece", piece());
     const saved = await store.write({
       kind: "piece",
       id: jacket.id,
       actor: AI,
       baseRevision: 1,
-      data: piece({ swatches: [], attrs: { material: { value: "cotton canvas", state: "confirmed", by: "x" } } }),
+      data: piece({ attrs: { material: { value: "cotton canvas", state: "confirmed", by: "x" } } }),
     });
     expect(saved.doc.data.attrs).toEqual({ material: { value: "cotton canvas", state: "suggested", by: AI } });
-    expect(saved.doc.data.swatches).toEqual([{ hex: "#1f2a44" }]);
   });
 
   it("can't change a value the person confirmed", async () => {
@@ -99,28 +83,29 @@ describe("what the AI may do", () => {
   it("records a nothing-needed review and can't mark a wish bought", async () => {
     const review = await create("review", { conclusion: "nothing-needed", summary: "The trousers you own already do this." }, AI);
     expect(review.data.conclusion).toBe("nothing-needed");
-    const wish = { name: "Straight grey trousers", status: "bought", priority: "medium", complementsPieceIds: [], alternativesOwnedIds: [], outfitsToTryIds: [] };
-    await expect(create("wish", wish, AI)).rejects.toBeInstanceOf(RuleError);
+    const wish = { name: "Straight grey trousers", status: "considering" };
+    const added = await create("wish", wish, AI);
+    await expect(store.write({ kind: "wish", id: added.id, actor: AI, baseRevision: 1, data: { ...wish, status: "bought" } })).rejects.toBeInstanceOf(RuleError);
   });
 
-  it("adds a product photo it found online to a piece, but none of the person's own photos", async () => {
+  it("adds photos to pieces, and the person picks the main one", async () => {
     const jacket = await create("piece", piece());
-    const photo = { ownerKind: "piece", ownerId: jacket.id, role: "flat", hasCutout: true, source: "https://shop.example/chore-jacket" };
+    const photo = { ownerKind: "piece", ownerId: jacket.id };
     const found = await store.write({ kind: "photo", id: newId(), actor: AI, baseRevision: 0, data: photo });
-    expect(found.doc.data).toEqual({ ...photo, hasCutout: false });
     expect(found.doc.createdBy).toBe(AI);
     await expect(store.write({ kind: "photo", id: found.doc.id, actor: AI, baseRevision: 1, data: photo })).rejects.toBeInstanceOf(RuleError);
-    const { source: _, ...ownPhoto } = photo;
-    await expect(store.write({ kind: "photo", id: newId(), actor: AI, baseRevision: 0, data: ownPhoto })).rejects.toThrow(/Only the person adds their own photos/);
-    await expect(store.write({ kind: "photo", id: newId(), actor: AI, baseRevision: 0, data: { ...photo, role: "worn" } })).rejects.toBeInstanceOf(RuleError);
-    // The person can make it the piece's main photo; the AI can't.
-    const main = await store.write({ kind: "piece", id: jacket.id, actor: "human", baseRevision: 1, data: piece({ heroPhotoId: found.doc.id }) });
-    expect(main.doc.data.heroPhotoId).toBe(found.doc.id);
-    const moved = await store.write({ kind: "piece", id: jacket.id, actor: AI, baseRevision: 2, data: piece() });
-    expect(moved.doc.data.heroPhotoId).toBe(found.doc.id);
-    // While it's the main photo, it can't be deleted or undone away.
-    await expect(store.remove("photo", found.doc.id, AI, 1)).rejects.toThrow(/main photo/);
-    await expect(store.undo(found.seq, AI)).rejects.toThrow(/main photo/);
+    // The person makes it the main photo; the AI can't change that.
+    const main = await store.write({ kind: "piece", id: jacket.id, actor: "human", baseRevision: 1, data: piece({ mainPhotoId: found.doc.id }) });
+    expect(main.doc.data.mainPhotoId).toBe(found.doc.id);
+    const tagged = await store.write({ kind: "piece", id: jacket.id, actor: AI, baseRevision: 2, data: piece() });
+    expect(tagged.doc.data.mainPhotoId).toBe(found.doc.id);
+  });
+
+  it("comments on inspiration rather than changing it", async () => {
+    const reference = await create("reference", { title: "Loose linen" });
+    await expect(store.write({ kind: "reference", id: reference.id, actor: AI, baseRevision: 1, data: { title: "Linen" } })).rejects.toBeInstanceOf(RuleError);
+    const comment = await create("comment", { subjectKind: "reference", subjectId: reference.id, text: "Your ecru knit carries the same softness." }, AI);
+    expect(comment.createdBy).toBe(AI);
   });
 
   it("deletes only its own records", async () => {
@@ -165,9 +150,9 @@ describe("history and undo", () => {
     const { cursor } = await store.feed(0);
     expect(cursor).toBe(1);
     expect((await store.feed(cursor)).docs).toEqual([]);
-    await create("comment", { subjectKind: "piece", subjectId: jacket.id, kind: "comment", text: "Too warm for June.", by: "x" });
+    await create("comment", { subjectKind: "piece", subjectId: jacket.id, text: "Too warm for June." });
     const next = await store.feed(cursor);
     expect(next.docs.map((doc) => doc.kind)).toEqual(["comment"]);
-    expect(next.docs[0].data.by).toBe("human");
+    expect(next.docs[0].createdBy).toBe("human");
   });
 });

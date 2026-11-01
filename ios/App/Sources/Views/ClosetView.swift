@@ -2,8 +2,8 @@ import PhotosUI
 import PutiaCore
 import SwiftUI
 
-/// The pieces the person owns. Adding one is picking a photo: the cut-out, colours and
-/// suggested tags are made on the phone, and the piece opens to be named.
+/// The pieces the person owns. Adding one is picking a photo: it's cut out on the phone, and the
+/// piece opens to be named.
 struct ClosetView: View {
     @Environment(AppModel.self) private var model
     @State private var path: [Route] = []
@@ -14,18 +14,10 @@ struct ClosetView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                if model.library.ownedPieces.isEmpty {
+                if model.library.closet.isEmpty {
                     ContentUnavailableView(L10n.closetEmptyTitle, systemImage: "hanger", description: Text(L10n.closetEmptyMessage))
                 }
-                grid(model.library.ownedPieces)
-                if !model.library.retiredPieces.isEmpty {
-                    Text(L10n.retired)
-                        .font(.headline)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal)
-                    grid(model.library.retiredPieces)
-                        .opacity(0.6)
-                }
+                grid(model.library.closet)
             }
             .navigationTitle(L10n.tabCloset)
             .toolbar {

@@ -43,7 +43,7 @@ struct OutfitsView: View {
                 }
             }
             .sheet(isPresented: $creating) {
-                OutfitEditor { id in path.append(.outfit(id)) }
+                OutfitEditor(outfit: nil) { id in path.append(.outfit(id)) }
                     .environment(model)
             }
             .refreshable { await model.refresh() }
@@ -57,11 +57,11 @@ private struct OutfitCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Collage(pieceIds: outfit.value.items.map(\.pieceId))
+            Collage(pieceIds: outfit.value.pieceIds)
             Text(outfit.value.title)
                 .font(.headline)
-            if let intent = outfit.value.intent {
-                Text(intent)
+            if let note = outfit.value.note {
+                Text(note)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -75,11 +75,12 @@ private struct OutfitCard: View {
     }
 }
 
-/// A new outfit from owned pieces.
-private struct OutfitEditor: View {
+/// A new outfit from owned pieces, or a change to an outfit's title and pieces.
+struct OutfitEditor: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
-    let created: (String) -> Void
+    let outfit: Record<Outfit>?
+    let saved: (String) -> Void
     @State private var title = ""
     @State private var chosen: [String] = []
 
@@ -89,7 +90,7 @@ private struct OutfitEditor: View {
                 TextField(L10n.outfitTitle, text: $title)
                     .accessibilityIdentifier("editor.title")
                 Section(L10n.choosePieces) {
-                    ForEach(model.library.ownedPieces) { piece in
+                    ForEach(model.library.closet) { piece in
                         Button {
                             if let index = chosen.firstIndex(of: piece.id) {
                                 chosen.remove(at: index)
@@ -110,7 +111,7 @@ private struct OutfitEditor: View {
                     }
                 }
             }
-            .navigationTitle(L10n.newOutfit)
+            .navigationTitle(outfit == nil ? L10n.newOutfit : L10n.edit)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -122,15 +123,28 @@ private struct OutfitEditor: View {
                         .accessibilityIdentifier("editor.save")
                 }
             }
+            .onAppear {
+                guard let outfit else { return }
+                title = outfit.value.title
+                chosen = outfit.value.pieceIds
+            }
         }
     }
 
     private func save() {
-        let outfit = Outfit(title: title.trimmed, items: chosen.map { Outfit.Item(pieceId: $0) })
+        var value = outfit?.value ?? Outfit(title: "", pieceIds: [])
+        value.title = title.trimmed
+        value.pieceIds = chosen
         Task {
-            guard let id = await model.create(.outfit(outfit)) else { return }
+            let id: String?
+            if let outfit {
+                id = await model.save(.outfit(value), id: outfit.id, revision: outfit.revision)?.id
+            } else {
+                id = await model.create(.outfit(value))
+            }
+            guard let id else { return }
             dismiss()
-            created(id)
+            saved(id)
         }
     }
 }

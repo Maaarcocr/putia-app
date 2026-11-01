@@ -142,52 +142,38 @@ final class MemoryServer: Server {
         let boots = "00000000-0000-4000-8000-000000000004"
         let knit = "00000000-0000-4000-8000-000000000005"
         let outfit = "00000000-0000-4000-8000-000000000010"
-        let confirmed = { (value: String) in Attribute([value], state: .confirmed, by: you) }
-        let suggested = { (value: String) in Attribute([value], state: .suggested, by: claude) }
-        let pieces: [(String, String, String, [String: Attribute])] = [
-            (jacket, "Navy chore jacket", "#1f2a44", ["category": confirmed("jacket"), "material": suggested("cotton canvas"), "cut": suggested("boxy")]),
-            (shirt, "White oxford shirt", "#eeece4", ["category": confirmed("shirt"), "material": confirmed("cotton oxford")]),
-            (trousers, "Grey flannel trousers", "#6b6e72", ["category": confirmed("trousers"), "material": confirmed("wool flannel")]),
-            (boots, "Brown suede boots", "#6e4a2f", ["category": confirmed("boots")]),
-            (knit, "Ecru cable knit", "#e6dcc6", ["category": confirmed("knitwear"), "material": suggested("wool")]),
+        let confirmed = { (value: String) in Attribute(value, state: .confirmed, by: you) }
+        let suggested = { (value: String) in Attribute(value, state: .suggested, by: claude) }
+        let pieces: [(String, String, [String: Attribute])] = [
+            (jacket, "Navy chore jacket", ["category": confirmed("jacket"), "material": suggested("cotton canvas"), "cut": suggested("boxy")]),
+            (shirt, "White oxford shirt", ["category": confirmed("shirt"), "material": confirmed("cotton oxford")]),
+            (trousers, "Grey flannel trousers", ["category": confirmed("trousers"), "material": confirmed("wool flannel")]),
+            (boots, "Brown suede boots", ["category": confirmed("boots")]),
+            (knit, "Ecru cable knit", ["category": confirmed("knitwear"), "material": suggested("wool")]),
         ]
-        for (id, name, hex, attrs) in pieces {
-            try? server.write(.piece(Piece(name: name, attrs: attrs, swatches: [Swatch(hex: hex)])), id: id, baseRevision: 0, actor: you)
+        for (id, name, attrs) in pieces {
+            try? server.write(.piece(Piece(name: name, attrs: attrs)), id: id, baseRevision: 0, actor: you)
         }
+        // The person's snapshot of the knit, and a photo of the same product an AI found online.
+        try? server.write(.photo(Photo(ownerKind: .piece, ownerId: knit)), id: "00000000-0000-4000-8000-000000000050", baseRevision: 0, actor: you)
         try? server.write(
-            .photo(Photo(ownerKind: .piece, ownerId: knit, role: .flat, hasCutout: false, source: "https://shop.example/ecru-cable-knit")),
-            id: "00000000-0000-4000-8000-000000000050", baseRevision: 0, actor: claude, note: "Same style number as on the label"
+            .photo(Photo(ownerKind: .piece, ownerId: knit)), id: "00000000-0000-4000-8000-000000000051", baseRevision: 0, actor: claude,
+            note: "Found on shop.example: same style number as on the label"
         )
         try? server.write(
             .outfit(Outfit(
-                title: "Soft workwear",
-                items: [
-                    Outfit.Item(pieceId: jacket, role: .outerwear), Outfit.Item(pieceId: shirt, role: .top),
-                    Outfit.Item(pieceId: trousers, role: .trousers), Outfit.Item(pieceId: boots, role: .shoes),
-                ],
-                intent: "Relaxed and textured, for a weekend in town.",
-                rationale: Outfit.Rationale(
-                    silhouette: "A boxy jacket over a straight, full leg keeps the outline even.",
-                    texture: "Canvas, flannel and suede are all matte, so nothing looks dressier than the rest.",
-                    effect: "Easy, practical, a little rugged."
-                ),
-                uncertainty: "How the flannel drapes over the boots can't be judged from flat photos."
+                title: "Soft workwear", pieceIds: [jacket, shirt, trousers, boots],
+                note: "Relaxed and textured, for a weekend in town. A boxy jacket over a straight leg; canvas, flannel and suede are all matte. "
+                    + "How the flannel drapes over the boots can't be judged from flat photos."
             )),
             id: outfit, baseRevision: 0, actor: claude, note: "Built around the jacket"
         )
         try? server.write(
-            .comment(Comment(
-                subjectKind: .outfit, subjectId: outfit, kind: .assessment,
-                text: "Coherent as it is. If it feels flat, swap the shirt for the cable knit before buying anything.", by: claude
-            )),
+            .comment(Comment(subjectKind: .outfit, subjectId: outfit, text: "Coherent as it is. If it feels flat, swap the shirt for the cable knit before buying anything.")),
             id: "00000000-0000-4000-8000-000000000020", baseRevision: 0, actor: claude
         )
         try? server.write(
-            .wish(Wish(
-                name: "Ecru knit polo", priority: .medium,
-                problem: "The jacket has no lighter layer for spring that still looks considered.",
-                complementsPieceIds: [jacket, trousers], alternativesOwnedIds: [shirt, knit], outfitsToTryIds: [outfit]
-            )),
+            .wish(Wish(name: "Ecru knit polo", note: "The jacket has no lighter layer for spring that still looks considered. Goes with the jacket and the flannels.")),
             id: "00000000-0000-4000-8000-000000000030", baseRevision: 0, actor: claude
         )
         try? server.write(

@@ -1,102 +1,6 @@
 {
   "sourceLanguage": "en",
   "strings": {
-    "attraction.colour": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Colour"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Colore"
-          }
-        }
-      }
-    },
-    "attraction.mood": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mood"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Atmosfera"
-          }
-        }
-      }
-    },
-    "attraction.outline": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Outline"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Linea"
-          }
-        }
-      }
-    },
-    "attraction.pattern": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pattern"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fantasia"
-          }
-        }
-      }
-    },
-    "attraction.texture": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Texture"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Texture"
-          }
-        }
-      }
-    },
-    "attraction.volume": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Volume"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Volume"
-          }
-        }
-      }
-    },
     "attribute.category": {
       "localizations": {
         "en": {
@@ -205,22 +109,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Creato da te"
-          }
-        }
-      }
-    },
-    "author.phone": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The phone"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Il telefono"
           }
         }
       }
@@ -433,262 +321,6 @@
         }
       }
     },
-    "category.accessory": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "accessory"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "accessorio"
-          }
-        }
-      }
-    },
-    "category.bag": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "bag"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "borsa"
-          }
-        }
-      }
-    },
-    "category.boots": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "boots"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "stivali"
-          }
-        }
-      }
-    },
-    "category.coat": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "coat"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "cappotto"
-          }
-        }
-      }
-    },
-    "category.hat": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "hat"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "cappello"
-          }
-        }
-      }
-    },
-    "category.jacket": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "jacket"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "giacca"
-          }
-        }
-      }
-    },
-    "category.jeans": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "jeans"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "jeans"
-          }
-        }
-      }
-    },
-    "category.knitwear": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "knitwear"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "maglieria"
-          }
-        }
-      }
-    },
-    "category.scarf": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "scarf"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "sciarpa"
-          }
-        }
-      }
-    },
-    "category.shirt": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "shirt"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "camicia"
-          }
-        }
-      }
-    },
-    "category.shoes": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "shoes"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "scarpe"
-          }
-        }
-      }
-    },
-    "category.shorts": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "shorts"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "pantaloncini"
-          }
-        }
-      }
-    },
-    "category.suit": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "suit"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "abito"
-          }
-        }
-      }
-    },
-    "category.sweatshirt": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "sweatshirt"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "felpa"
-          }
-        }
-      }
-    },
-    "category.trousers": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "trousers"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "pantaloni"
-          }
-        }
-      }
-    },
-    "category.tshirt": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "T-shirt"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "t-shirt"
-          }
-        }
-      }
-    },
     "closet.add": {
       "localizations": {
         "en": {
@@ -710,13 +342,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Add a piece from a photo. Putia cuts it out and suggests a few tags for you to check."
+            "value": "Add a piece from a photo. Putia cuts it out; tag it yourself, or let a connected AI suggest tags."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aggiungi un capo da una foto. Putia lo scontorna e suggerisce qualche etichetta da controllare."
+            "value": "Aggiungi un capo da una foto. Putia lo scontorna; aggiungi tu le etichette, o lascia che le suggerisca un'IA collegata."
           }
         }
       }
@@ -753,326 +385,6 @@
         }
       }
     },
-    "closet.retired": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Retired"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ritirati"
-          }
-        }
-      }
-    },
-    "colour.beige": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "beige"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "beige"
-          }
-        }
-      }
-    },
-    "colour.black": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "black"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "nero"
-          }
-        }
-      }
-    },
-    "colour.blue": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "blue"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "blu"
-          }
-        }
-      }
-    },
-    "colour.brown": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "brown"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "marrone"
-          }
-        }
-      }
-    },
-    "colour.burgundy": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "burgundy"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "bordeaux"
-          }
-        }
-      }
-    },
-    "colour.camel": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "camel"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "cammello"
-          }
-        }
-      }
-    },
-    "colour.charcoal": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "charcoal"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "antracite"
-          }
-        }
-      }
-    },
-    "colour.cream": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "cream"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "panna"
-          }
-        }
-      }
-    },
-    "colour.green": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "green"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "verde"
-          }
-        }
-      }
-    },
-    "colour.grey": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "grey"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "grigio"
-          }
-        }
-      }
-    },
-    "colour.lightBlue": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "light blue"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "azzurro"
-          }
-        }
-      }
-    },
-    "colour.navy": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "navy"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "blu navy"
-          }
-        }
-      }
-    },
-    "colour.olive": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "olive"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "verde oliva"
-          }
-        }
-      }
-    },
-    "colour.orange": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "orange"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "arancione"
-          }
-        }
-      }
-    },
-    "colour.pink": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "pink"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "rosa"
-          }
-        }
-      }
-    },
-    "colour.purple": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "purple"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "viola"
-          }
-        }
-      }
-    },
-    "colour.red": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "red"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "rosso"
-          }
-        }
-      }
-    },
-    "colour.white": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "white"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "bianco"
-          }
-        }
-      }
-    },
-    "colour.yellow": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "yellow"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "giallo"
-          }
-        }
-      }
-    },
     "comments.add": {
       "localizations": {
         "en": {
@@ -1085,38 +397,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aggiungi un commento"
-          }
-        }
-      }
-    },
-    "comments.assessment": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Assessment"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Valutazione"
-          }
-        }
-      }
-    },
-    "comments.reaction": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reaction"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reazione"
           }
         }
       }
@@ -1505,70 +785,6 @@
         }
       }
     },
-    "feeling.didntWork": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Didn't work"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Non funziona"
-          }
-        }
-      }
-    },
-    "feeling.fine": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fine"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Va bene"
-          }
-        }
-      }
-    },
-    "feeling.loved": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Loved it"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Adorato"
-          }
-        }
-      }
-    },
-    "feeling.meh": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Meh"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Così così"
-          }
-        }
-      }
-    },
     "kind.comment": {
       "localizations": {
         "en": {
@@ -1889,38 +1105,6 @@
         }
       }
     },
-    "outfit.addMirrorPhoto": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add a mirror photo"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aggiungi una foto allo specchio"
-          }
-        }
-      }
-    },
-    "outfit.compare": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Compare"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Confronta"
-          }
-        }
-      }
-    },
     "outfit.delete.title": {
       "localizations": {
         "en": {
@@ -1933,70 +1117,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Eliminare questo abbinamento?"
-          }
-        }
-      }
-    },
-    "outfit.effect": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Effect"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Effetto"
-          }
-        }
-      }
-    },
-    "outfit.howItWent": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "How it went"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Com'è andata"
-          }
-        }
-      }
-    },
-    "outfit.intent": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The idea"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "L'idea"
-          }
-        }
-      }
-    },
-    "outfit.occasion": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Occasion"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Occasione"
           }
         }
       }
@@ -2017,134 +1137,6 @@
         }
       }
     },
-    "outfit.silhouette": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Silhouette"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Silhouette"
-          }
-        }
-      }
-    },
-    "outfit.swap": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Swap"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sostituisci"
-          }
-        }
-      }
-    },
-    "outfit.swap.footer": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Swapping a piece makes a new version, so you can compare the two."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sostituire un capo crea una nuova versione, così puoi confrontarle."
-          }
-        }
-      }
-    },
-    "outfit.swapped %@ %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ → %2$@"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ → %2$@"
-          }
-        }
-      }
-    },
-    "outfit.texture": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Texture"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Texture"
-          }
-        }
-      }
-    },
-    "outfit.uncertainty": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "What a photo can't show"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cosa una foto non può mostrare"
-          }
-        }
-      }
-    },
-    "outfit.variationOf %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Variation of “%@”"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Variante di “%@”"
-          }
-        }
-      }
-    },
-    "outfit.variations": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Variations"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Varianti"
-          }
-        }
-      }
-    },
     "outfit.why": {
       "localizations": {
         "en": {
@@ -2157,38 +1149,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Perché dovrebbe funzionare"
-          }
-        }
-      }
-    },
-    "outfit.woreToday": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "I wore it today"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "L'ho indossato oggi"
-          }
-        }
-      }
-    },
-    "outfit.worn": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Worn"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Indossato"
           }
         }
       }
@@ -2289,70 +1249,6 @@
         }
       }
     },
-    "piece.addNote": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add a note"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aggiungi una nota"
-          }
-        }
-      }
-    },
-    "piece.bringBack": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bring back"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rimetti nell'armadio"
-          }
-        }
-      }
-    },
-    "piece.colours": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Colours in the photo"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Colori nella foto"
-          }
-        }
-      }
-    },
-    "piece.colours.footer": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Measured from the cut-out. Light and camera change colours, so they are only a guide."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Misurati dallo scontorno. Luce e fotocamera alterano i colori: sono solo un'indicazione."
-          }
-        }
-      }
-    },
     "piece.delete.title": {
       "localizations": {
         "en": {
@@ -2381,54 +1277,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nome"
-          }
-        }
-      }
-    },
-    "piece.note": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Note"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nota"
-          }
-        }
-      }
-    },
-    "piece.notes": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Notes"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Note"
-          }
-        }
-      }
-    },
-    "piece.retire": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Retire"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ritira"
           }
         }
       }
@@ -2525,54 +1373,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Negli abbinamenti"
-          }
-        }
-      }
-    },
-    "priority.high": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "High priority"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Priorità alta"
-          }
-        }
-      }
-    },
-    "priority.low": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Low priority"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Priorità bassa"
-          }
-        }
-      }
-    },
-    "priority.medium": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Medium priority"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Priorità media"
           }
         }
       }
@@ -2705,22 +1505,6 @@
         }
       }
     },
-    "provenance.suggestedByPhone": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Suggested by the phone, from the photo"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Suggerito dal telefono, dalla foto"
-          }
-        }
-      }
-    },
     "provenance.suggestedByYou": {
       "localizations": {
         "en": {
@@ -2733,38 +1517,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Suggerito da te"
-          }
-        }
-      }
-    },
-    "reference.attraction": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "What draws you to it"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cosa ti attira"
-          }
-        }
-      }
-    },
-    "reference.attraction.footer": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The same image can mean different things. Naming what you like helps translate it into what you own."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "La stessa immagine può voler dire cose diverse. Dire cosa ti piace aiuta a tradurla in ciò che hai."
           }
         }
       }
@@ -2801,22 +1553,6 @@
         }
       }
     },
-    "reference.noTranslation": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Not translated yet. A connected AI can suggest which of your pieces carry the same idea."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Non ancora tradotta. Un'IA collegata può suggerire quali tuoi capi portano la stessa idea."
-          }
-        }
-      }
-    },
     "reference.title": {
       "localizations": {
         "en": {
@@ -2829,22 +1565,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Titolo"
-          }
-        }
-      }
-    },
-    "reference.translation": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "With what you own"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Con ciò che hai"
           }
         }
       }
@@ -2961,22 +1681,6 @@
         }
       }
     },
-    "wish.complements": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Goes with"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Si abbina a"
-          }
-        }
-      }
-    },
     "wish.delete.title": {
       "localizations": {
         "en": {
@@ -3021,38 +1725,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Apri il link"
-          }
-        }
-      }
-    },
-    "wish.ownedAlternatives": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Already owned, might do"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Già nell'armadio, potrebbe bastare"
-          }
-        }
-      }
-    },
-    "wish.priority": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Priority"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Priorità"
           }
         }
       }
@@ -3105,22 +1777,6 @@
         }
       }
     },
-    "wish.tryFirst": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Try these first"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Prova prima questi"
-          }
-        }
-      }
-    },
     "wishStatus.bought": {
       "localizations": {
         "en": {
@@ -3169,71 +1825,39 @@
         }
       }
     },
-    "wishStatus.tryingFirst": {
+    "photos.title": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Trying combinations first"
+            "value": "Photos"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Prima provo altre combinazioni"
+            "value": "Foto"
           }
         }
       }
     },
-    "piece.webPhotos": {
+    "photos.add": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "From the web"
+            "value": "Add a photo"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dal web"
+            "value": "Aggiungi una foto"
           }
         }
       }
     },
-    "piece.webPhotos.footer": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Photos of the same product that an AI found online, with the page they came from. They show the product as sold, not your piece: colour and fit can differ."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Foto dello stesso prodotto che un'IA ha trovato online, con la pagina da cui vengono. Mostrano il prodotto com'è in vendita, non il tuo capo: colore e vestibilità possono essere diversi."
-          }
-        }
-      }
-    },
-    "piece.webPhoto.foundBy %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Found by %@"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Trovata da %@"
-          }
-        }
-      }
-    },
-    "piece.webPhoto.useAsMain": {
+    "photos.useAsMain": {
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3249,23 +1873,7 @@
         }
       }
     },
-    "piece.webPhoto.useYours": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Use your photo"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Usa la tua foto"
-          }
-        }
-      }
-    },
-    "piece.webPhoto.delete.title": {
+    "photos.delete.title": {
       "localizations": {
         "en": {
           "stringUnit": {

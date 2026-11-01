@@ -23,15 +23,16 @@ final class PutiaUITests: XCTestCase {
         confirm.tap()
         XCTAssertTrue(confirm.waitForNonExistence(timeout: 30), "the person confirms the suggestion")
 
-        // A photo of the same product that an AI found online: the person makes it the main photo.
-        let useAsMain = element(app, "piece.webPhoto.useAsMain")
+        // The piece's photos: the person makes the one an AI found online the main photo.
+        let useAsMain = element(app, "photo.useAsMain.00000000-0000-4000-8000-000000000051")
         app.swipeUp()
         XCTAssertTrue(useAsMain.waitForExistence(timeout: 30))
-        capture("02b-web-photo")
+        XCTAssertTrue(element(app, "photos.add").exists)
+        capture("02b-photos")
         useAsMain.tap()
-        XCTAssertTrue(useAsMain.waitForNonExistence(timeout: 30), "the photo from the web is now the main one")
+        XCTAssertTrue(useAsMain.waitForNonExistence(timeout: 30), "the AI's photo is now the main one")
 
-        // The workbench: an AI's proposal, which the person marks tried.
+        // The workbench: an AI's proposal, which the person marks tried and edits.
         app.tabBars.buttons.element(boundBy: 1).tap()
         let card = element(app, "outfits.card")
         XCTAssertTrue(card.waitForExistence(timeout: 30))
@@ -44,6 +45,14 @@ final class PutiaUITests: XCTestCase {
         tried.tap()
         expectation(for: NSPredicate(format: "isSelected == true"), evaluatedWith: tried)
         waitForExpectations(timeout: 30)
+        let edit = element(app, "outfit.edit")
+        for _ in 0..<6 where !edit.isHittable { app.swipeUp() }
+        edit.tap()
+        let save = element(app, "editor.save")
+        XCTAssertTrue(save.waitForExistence(timeout: 30))
+        capture("04b-edit-outfit")
+        save.tap()
+        XCTAssertTrue(save.waitForNonExistence(timeout: 30))
 
         // What's missing: the AI's conclusion and shortlist.
         app.tabBars.buttons.element(boundBy: 2).tap()

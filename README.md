@@ -13,9 +13,9 @@ Putia ("workshop" in Sicilian) is a visual catalogue of the clothes you own, an 
 
 ## What it does
 
-- **Wardrobe.** Add a piece from a photo: the phone cuts it out, measures its colours and suggests a category and colour. Every tag says who set it and whether you confirmed it; material and fit are never presented as facts read from a photo. Notes, and the outfits each piece is in.
-- **Outfit workbench.** Large cards, proposed → tried → favourite. Swap a piece to make a variation and compare the two side by side. AI proposals explain silhouette, texture and intended effect, and what a photo can't show. Reactions, comments and mirror photos stay with the outfit.
-- **What's missing.** A shortlist where each entry names the problem it solves, the pieces it goes with, what you own that might do instead, and a priority. "Try a different combination" and "you don't need anything" are valid conclusions. Inspiration images stay apart from what you own.
+- **Wardrobe.** Add a piece from a photo: the phone cuts it out. A piece can have more photos, such as its label, or the product photo an AI found online. Every tag says who set it and whether you confirmed it; material and fit are never presented as facts read from a photo.
+- **Outfit workbench.** Large cards, proposed → tried → favourite. AI proposals explain the intended effect, silhouette and texture, and what a photo can't show. Photos and comments stay with the outfit.
+- **What's missing.** A shortlist where each entry names the problem it solves. "Try a different combination" and "you don't need anything" are valid conclusions. Inspiration images stay apart from what you own.
 - **Collaboration.** Shared records, comments, revisions, history and undo, from the app and from the AI.
 
 The full behaviour is in **[docs/product-spec.md](docs/product-spec.md)**.

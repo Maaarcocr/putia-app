@@ -13,7 +13,7 @@ var targets: [Target] = [
 
 #if !os(Linux)
 products.append(.library(name: "PutiaImaging", targets: ["PutiaImaging"]))
-targets.append(.target(name: "PutiaImaging", dependencies: ["PutiaCore"]))
+targets.append(.target(name: "PutiaImaging"))
 targets.append(.testTarget(name: "PutiaImagingTests", dependencies: ["PutiaImaging"]))
 #endif
 

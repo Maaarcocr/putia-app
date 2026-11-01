@@ -151,13 +151,9 @@ public struct Library: Codable, Equatable, Sendable {
 
     // MARK: What the screens show
 
-    /// Owned pieces, most recently changed first.
-    public var ownedPieces: [Record<Piece>] {
-        newestFirst(pieces.values.filter { $0.value.status == .owned })
-    }
-
-    public var retiredPieces: [Record<Piece>] {
-        newestFirst(pieces.values.filter { $0.value.status == .retired })
+    /// The pieces, most recently changed first.
+    public var closet: [Record<Piece>] {
+        newestFirst(Array(pieces.values))
     }
 
     public func outfits(in stage: Outfit.Stage) -> [Record<Outfit>] {
@@ -165,27 +161,33 @@ public struct Library: Codable, Equatable, Sendable {
     }
 
     public func outfits(using pieceId: String) -> [Record<Outfit>] {
-        newestFirst(outfits.values.filter { $0.value.items.contains { $0.pieceId == pieceId } })
-    }
-
-    /// Variations made from an outfit, newest first.
-    public func variations(of outfitId: String) -> [Record<Outfit>] {
-        newestFirst(outfits.values.filter { $0.value.parentId == outfitId })
+        newestFirst(outfits.values.filter { $0.value.pieceIds.contains(pieceId) })
     }
 
     /// Comments on a record, oldest first, as a conversation reads.
     public func comments(on subjectId: String) -> [Record<Comment>] {
-        comments.values.filter { $0.value.subjectId == subjectId }.sorted { ($0.updatedAt, $0.id) < ($1.updatedAt, $1.id) }
+        oldestFirst(comments.values.filter { $0.value.subjectId == subjectId })
     }
 
-    /// Open shortlist entries, highest priority first.
+    /// A piece's, outfit's or inspiration's photos, oldest first.
+    public func photos(of ownerId: String) -> [Record<Photo>] {
+        oldestFirst(photos.values.filter { $0.value.ownerId == ownerId })
+    }
+
+    /// The photo a piece is shown with: the one the person chose, or its first.
+    public func mainPhotoId(of piece: Record<Piece>) -> String? {
+        let ids = photos(of: piece.id).map(\.id)
+        return ids.first { $0 == piece.value.mainPhotoId } ?? ids.first
+    }
+
+    /// Shortlist entries still being considered.
     public var shortlist: [Record<Wish>] {
-        newestFirst(wishes.values.filter { $0.value.isOpen }).sorted { $0.value.priority.rank > $1.value.priority.rank }
+        newestFirst(wishes.values.filter { $0.value.status == .considering })
     }
 
-    /// Entries the person dismissed or bought.
+    /// Entries the person bought or dismissed.
     public var decidedWishes: [Record<Wish>] {
-        newestFirst(wishes.values.filter { !$0.value.isOpen })
+        newestFirst(wishes.values.filter { $0.value.status != .considering })
     }
 
     public var inspiration: [Record<Reference>] {
@@ -196,19 +198,13 @@ public struct Library: Codable, Equatable, Sendable {
         newestFirst(Array(reviews.values)).first
     }
 
-    /// The photo a piece is shown with.
-    public func heroPhotoId(of piece: Piece) -> String? {
-        piece.heroPhotoId ?? piece.photoIds.first
-    }
-
-    /// Photos of a piece's product that an AI found online, newest first.
-    public func webPhotos(of pieceId: String) -> [Record<Photo>] {
-        newestFirst(photos.values.filter { $0.value.ownerKind == .piece && $0.value.ownerId == pieceId && $0.value.source != nil })
-    }
-
+    // Ties (same instant) fall back to the id, so the order never jumps between refreshes.
     private func newestFirst<Value>(_ records: [Record<Value>]) -> [Record<Value>] {
-        // Ties (same instant) fall back to the id, so the order never jumps between refreshes.
         records.sorted { ($0.updatedAt, $0.id) > ($1.updatedAt, $1.id) }
+    }
+
+    private func oldestFirst<Value>(_ records: [Record<Value>]) -> [Record<Value>] {
+        records.sorted { ($0.updatedAt, $0.id) < ($1.updatedAt, $1.id) }
     }
 }
 

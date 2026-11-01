@@ -1,7 +1,7 @@
 // End-to-end check against a local server (`npm run db:local && npx cf dev`):
 //   node test/e2e.mjs [base URL, default http://localhost:5173]
 // The app adds a piece with a photo, an AI pairs and signs in, reads it, suggests tags and proposes
-// an outfit; the person tries it and reacts; the AI records a review; changes are undone.
+// an outfit; the person tries it and comments; the AI records a review; changes are undone.
 import assert from "node:assert/strict";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
@@ -20,15 +20,15 @@ assert.equal(intruder.status, 401, "another secret is refused");
 const jacketId = randomUUID();
 const trousersId = randomUUID();
 const photoId = randomUUID();
-const piece = (name, photoIds = []) => ({ name, status: "owned", attrs: {}, swatches: [{ hex: "#1f2a44" }], notes: [], photoIds });
+const piece = (name) => ({ name, attrs: {} });
 assert.equal((await put(`/docs/piece/${jacketId}`, { baseRevision: 0, data: piece("Navy chore jacket") })).status, 200);
 assert.equal((await put(`/docs/piece/${trousersId}`, { baseRevision: 0, data: piece("Grey trousers") })).status, 200);
 // A 1x1 PNG stands in for the cut-out.
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
 const upload = await app(`/photos/${photoId}/thumb`, { method: "PUT", headers: { "Content-Type": "image/png" }, body: png });
 assert.equal(upload.status, 204);
-assert.equal((await put(`/docs/photo/${photoId}`, { baseRevision: 0, data: { ownerKind: "piece", ownerId: jacketId, role: "flat", hasCutout: true } })).status, 200);
-const withPhoto = await put(`/docs/piece/${jacketId}`, { baseRevision: 1, data: { ...piece("Navy chore jacket", [photoId]), heroPhotoId: photoId } });
+assert.equal((await put(`/docs/photo/${photoId}`, { baseRevision: 0, data: { ownerKind: "piece", ownerId: jacketId } })).status, 200);
+const withPhoto = await put(`/docs/piece/${jacketId}`, { baseRevision: 1, data: { ...piece("Navy chore jacket"), mainPhotoId: photoId } });
 assert.equal(withPhoto.status, 200, await withPhoto.clone().text());
 const stale = await put(`/docs/piece/${jacketId}`, { baseRevision: 1, data: piece("Stale") });
 assert.equal(stale.status, 409, "a stale write is a conflict");
@@ -105,12 +105,12 @@ const json = async (name, args) => JSON.parse((await call(name, args)).text);
 const init = await rpc("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "e2e", version: "1" } });
 assert.match(init.instructions, /wardrobe studio/);
 const tools = (await rpc("tools/list")).tools.map((tool) => tool.name).sort();
-assert.deepEqual(tools, ["add_product_photo", "comment", "delete", "get", "get_photo", "guidance", "history", "list", "overview",
-  "save_outfit", "save_piece", "save_reference", "save_review", "save_wish", "undo"]);
+assert.deepEqual(tools, ["add_photo", "comment", "delete", "get", "get_photo", "guidance", "history", "list", "overview",
+  "save_outfit", "save_piece", "save_review", "save_wish", "undo"]);
 assert.match((await call("guidance")).text, /Candid Menswear Assessment/);
 
 const overview = await json("overview");
-assert.equal(overview.pieces.owned, 2);
+assert.equal(overview.pieces, 2);
 assert.equal(overview.piecesNeedingReview.length, 2);
 const photo = await call("get_photo", { photo_id: photoId });
 assert.equal(photo.type, "image");
@@ -119,7 +119,7 @@ assert.equal(photo.mimeType, "image/png");
 const jacket = await json("get", { kind: "piece", id: jacketId });
 const tagged = await json("save_piece", {
   id: jacketId, revision: jacket.revision, note: "Tags from the photo",
-  data: { ...piece("Navy chore jacket", [photoId]), heroPhotoId: photoId, attrs: {
+  data: { ...piece("Navy chore jacket"), attrs: {
     category: { value: "jacket", state: "suggested", by: "ai" },
     material: { value: "cotton canvas", state: "confirmed", by: "ai" },
   } },
@@ -130,44 +130,38 @@ assert.equal(tagged.saved.attrs.material.by, "agent:Test Agent");
 // The AI adds a photo of the product it found online (the app icon stands in for a shop's image).
 const repoFile = (path) => `https://raw.githubusercontent.com/Maaarcocr/putia-app/main/${path}`;
 const productPage = "https://github.com/Maaarcocr/putia-app";
-const found = await json("add_product_photo", {
-  piece_id: jacketId, image_url: repoFile("ios/App/Assets.xcassets/AppIcon.appiconset/AppIcon.png"), source_url: productPage,
-  note: "Same product code as on the label",
+const found = await json("add_photo", {
+  piece_id: jacketId, image_url: repoFile("ios/App/Assets.xcassets/AppIcon.appiconset/AppIcon.png"),
+  note: `Found on ${productPage}: same product code as on the label`,
 });
-assert.equal(found.saved.source, productPage, JSON.stringify(found));
-assert.equal(found.saved.by, "agent:Test Agent");
+assert.equal(found.saved.by, "agent:Test Agent", JSON.stringify(found));
 assert.equal((await call("get_photo", { photo_id: found.saved.id })).mimeType, "image/png");
-const jacketPhotos = (await json("get", { kind: "piece", id: jacketId })).photos;
-assert.deepEqual(jacketPhotos.map((photo) => photo.source ?? "the person's").sort(), [productPage, "the person's"].sort());
-assert.match((await call("add_product_photo", { piece_id: jacketId, image_url: repoFile("README.md"), source_url: productPage })).text,
+assert.deepEqual((await json("get", { kind: "piece", id: jacketId })).photos.map((photo) => photo.id).sort(), [photoId, found.saved.id].sort());
+assert.match((await call("add_photo", { piece_id: jacketId, image_url: repoFile("README.md"), note: productPage })).text,
   /must be a JPEG, PNG or WebP/, "only images are saved");
 
 const proposal = await json("save_outfit", {
   note: "Built around the jacket",
   data: {
-    title: "Soft workwear", stage: "proposed", photoIds: [], wornOn: [],
-    items: [{ pieceId: jacketId, role: "outerwear" }, { pieceId: trousersId, role: "trousers" }],
-    intent: "Relaxed and textured, for weekends",
-    rationale: { silhouette: "Boxy jacket over a straight leg", texture: "Canvas against flannel" },
-    uncertainty: "Drape of the trousers can't be judged from a flat photo.",
+    title: "Soft workwear", stage: "proposed", pieceIds: [jacketId, trousersId],
+    note: "Relaxed and textured: a boxy jacket over a straight leg, canvas against flannel. Drape can't be judged from flat photos.",
   },
 });
 const outfitId = proposal.saved.id;
-const refused = await call("save_outfit", { id: outfitId, revision: 1, data: { ...proposal.saved, stage: "tried", kind: undefined } });
-assert.match(refused.text, /error/i, "the AI can't mark an outfit tried");
+const refused = await call("save_outfit", { id: outfitId, revision: 1, data: { title: "Soft workwear", stage: "tried", pieceIds: [jacketId] } });
+assert.match(refused.text, /Only the person marks an outfit tried/, "the AI can't mark an outfit tried");
 
-// 4. The person tries it and reacts; the AI sees that and records a review.
+// 4. The person tries it and comments; the AI sees that and records a review.
 const feed = await (await app("/changes?since=0")).json();
 const outfit = feed.docs.find((doc) => doc.id === outfitId);
 assert.equal(outfit.createdBy, "agent:Test Agent");
-assert.equal((await put(`/docs/outfit/${outfitId}`, { baseRevision: outfit.revision, data: { ...outfit.data, stage: "tried", wornOn: ["2026-11-01"] } })).status, 200);
-const reactionId = randomUUID();
-assert.equal((await put(`/docs/comment/${reactionId}`, {
-  baseRevision: 0, data: { subjectKind: "outfit", subjectId: outfitId, kind: "reaction", feeling: "loved", text: "Comfortable all day.", by: "human" },
+assert.equal((await put(`/docs/outfit/${outfitId}`, { baseRevision: outfit.revision, data: { ...outfit.data, stage: "tried" } })).status, 200);
+assert.equal((await put(`/docs/comment/${randomUUID()}`, {
+  baseRevision: 0, data: { subjectKind: "outfit", subjectId: outfitId, text: "Comfortable all day." },
 })).status, 200);
 const seen = await json("get", { kind: "outfit", id: outfitId });
 assert.equal(seen.stage, "tried");
-assert.equal(seen.comments[0].feeling, "loved");
+assert.equal(seen.comments[0].by, "human");
 
 const review = await json("save_review", { data: { conclusion: "nothing-needed", summary: "The grey trousers already do the job." } });
 assert.equal(review.saved.conclusion, "nothing-needed");
