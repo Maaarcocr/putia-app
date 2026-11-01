@@ -64,7 +64,7 @@ This repository is **public**. Anyone with write access can change workflows and
 3. In App Store Connect, wait for processing, then:
    - the build declares no non-exempt encryption, so no export-compliance question should come up;
    - App Privacy: **Photos** and **Other User Content**, collected for **App Functionality**, **not linked** to the user's identity, **not used for tracking**;
-   - add the build to an internal TestFlight group.
+   - the internal TestFlight group "Me" has automatic distribution: each processed build reaches its testers by itself.
 
 ## Verification boundary
 
