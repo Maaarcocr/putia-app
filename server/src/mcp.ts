@@ -11,11 +11,11 @@ import { type Doc, Invalid, NotFound, Store } from "./store";
 // The tools an AI sees. It works on the same records as the app: everything it saves is
 // attributed to it, kept in the history and can be undone.
 
-const INSTRUCTIONS = `Putia is the user's wardrobe studio. You and the user work on the same saved records: the pieces they own, outfits (proposed → tried → favourite), inspiration images, a shortlist of possible additions, and reviews. Start with "overview". Before your first assessment or outfit, read "guidance": the assessment approach to follow here. You can change anything the user can. Everything you save is attributed to you, kept in history, and can be undone.
+const INSTRUCTIONS = `Putia is the user's wardrobe studio. You and the user work on the same saved records: the pieces they own, outfits (the user marks favourites), inspiration images, a shortlist of possible additions, and reviews. Start with "overview". Before your first assessment or outfit, read "guidance": the assessment approach to follow here. You can change anything the user can. Everything you save is attributed to you, kept in history, and can be undone.
 - Look at the photos ("get_photo") before judging a piece or outfit. A photo can't establish material, true colour, size or comfort: save the tags you set with state "suggested" and "by" set to your name, so the user can confirm them.
 - Get to know each piece. When a label, tag, barcode or product code is visible, or a comment names the brand and model, search the web for that exact product if you can. Add its clearest photo with "add_photo" (the piece alone on a plain or transparent background: no model, no other items), suggest tags from the listing, and comment on the piece with what you found and the link. Only when you're sure it's the same product: a listing shows the product as sold, not this piece's true colour, wear or alterations.
 - When you can't tell exactly what a piece is, ask the user for a photo of its label, care tag or barcode, or the brand and product name or code: in your conversation, or as a comment on the piece (they can add the photo to the piece, or answer with a comment). Ask about the pieces that matter most first, a few at a time.
-- Propose outfits only from owned pieces, as "proposed", with a note on the intended effect, silhouette and texture, and what a collage can't show. List the pieces from head to feet, each outer layer before what goes under it: the app lays their main photos out in that order, each over the next. If you can make images, make a virtual try-on: the user wearing the outfit, made from their photos ("photosOfUser" in "overview"; get_photo with size "full") and the pieces' photos, and add it to the outfit with "add_photo". The user's comments and photos tell you what works.
+- Propose outfits only from owned pieces, with a note on the intended effect, silhouette and texture, and what a collage can't show. List the pieces from head to feet, each outer layer before what goes under it: the app lays their main photos out in that order, each over the next. If you can make images, make a virtual try-on: the user wearing the outfit, made from their photos ("photosOfUser" in "overview"; get_photo with size "full") and the pieces' photos, and add it to the outfit with "add_photo". The user's favourite outfits, comments and photos tell you what works.
 - Before suggesting a purchase, look for combinations of what they own. "Nothing needed" and "try a different combination" are valid conclusions: record them with "save_review". A shortlist entry's note names the problem it solves and the pieces it goes with.
 - Judge whole combinations, name the smallest sufficient change, separate observation from preference. No scores, flattery or universal rules.
 - If a save reports a conflict, the user changed the record meanwhile: read it again and redo your change on top.`;
@@ -94,7 +94,7 @@ export async function handleMcp(request: Request, env: Env, props: Props): Promi
   server.registerTool(
     "overview",
     {
-      description: "Start here: how many pieces, pieces whose tags need review, outfits by stage, the shortlist, photos of the user for try-ons, and the latest changes (by the user or AI).",
+      description: "Start here: how many pieces, pieces whose tags need review, how many outfits and favourites, the shortlist, photos of the user for try-ons, and the latest changes (by the user or AI).",
       inputSchema: z.object({}),
       annotations: { readOnlyHint: true },
     },
@@ -105,12 +105,12 @@ export async function handleMcp(request: Request, env: Env, props: Props): Promi
           const tags = Object.values(piece.data.attrs as Record<string, { state: string }>);
           return tags.length === 0 || tags.some((tag) => tag.state === "suggested");
         });
-        const stages: Record<string, number> = { proposed: 0, tried: 0, favourite: 0 };
-        for (const outfit of await store.list("outfit")) stages[outfit.data.stage as string] += 1;
+        const outfits = await store.list("outfit");
         return {
           pieces: pieces.length,
           piecesNeedingReview: needsReview.map((piece) => ({ id: piece.id, name: piece.data.name || "(unnamed)" })),
-          outfits: stages,
+          outfits: outfits.length,
+          favouriteOutfits: outfits.filter((outfit) => outfit.data.favourite).length,
           inspiration: (await store.list("reference")).length,
           shortlist: (await store.list("wish")).map((wish) => ({ id: wish.id, name: wish.data.name, status: wish.data.status })),
           photosOfUser: (await store.list("photo")).filter((photo) => photo.data.ownerKind === "person").map((photo) => photo.id),
@@ -145,7 +145,7 @@ export async function handleMcp(request: Request, env: Env, props: Props): Promi
         if (kind !== "piece") return { ...view(doc), comments, photos };
         const outfits = (await store.list("outfit"))
           .filter((outfit) => (outfit.data.pieceIds as string[]).includes(id))
-          .map((outfit) => ({ id: outfit.id, title: outfit.data.title, stage: outfit.data.stage }));
+          .map((outfit) => ({ id: outfit.id, title: outfit.data.title, favourite: outfit.data.favourite }));
         return { ...view(doc), comments, photos, outfits };
       }),
   );

@@ -1121,6 +1121,22 @@
         }
       }
     },
+    "outfit.favourite": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favourite"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preferito"
+          }
+        }
+      }
+    },
     "outfit.pieces": {
       "localizations": {
         "en": {
@@ -1229,22 +1245,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nuovo abbinamento"
-          }
-        }
-      }
-    },
-    "outfits.stage": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stage"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fase"
           }
         }
       }
@@ -1581,54 +1581,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Titolo"
-          }
-        }
-      }
-    },
-    "stage.favourite": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Favourite"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Preferito"
-          }
-        }
-      }
-    },
-    "stage.proposed": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Proposed"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Proposto"
-          }
-        }
-      }
-    },
-    "stage.tried": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tried"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Provato"
           }
         }
       }

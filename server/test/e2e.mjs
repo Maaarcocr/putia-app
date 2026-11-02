@@ -148,7 +148,7 @@ assert.match((await call("add_photo", { owner_kind: "piece", owner_id: jacketId,
 const proposal = await json("save_outfit", {
   note: "Built around the jacket",
   data: {
-    title: "Soft workwear", stage: "proposed", pieceIds: [jacketId, trousersId],
+    title: "Soft workwear", pieceIds: [jacketId, trousersId],
     note: "Relaxed and textured: a boxy jacket over a straight leg, canvas against flannel. Drape can't be judged from flat photos.",
   },
 });
@@ -160,16 +160,18 @@ const tryOn = await json("add_photo", {
 assert.equal(tryOn.saved.ownerKind, "outfit", JSON.stringify(tryOn));
 assert.deepEqual(new Uint8Array(await (await app(`/photos/${tryOn.saved.id}/full`)).arrayBuffer()), new Uint8Array(png));
 
-// 4. The person tries it and comments; the AI sees that and records a review.
+// 4. The person marks it a favourite and comments; the AI sees that and records a review.
 const feed = await (await app("/changes?since=0")).json();
 const outfit = feed.docs.find((doc) => doc.id === outfitId);
 assert.equal(outfit.createdBy, "agent:Test Agent");
-assert.equal((await put(`/docs/outfit/${outfitId}`, { baseRevision: outfit.revision, data: { ...outfit.data, stage: "tried" } })).status, 200);
+assert.equal(outfit.data.favourite, false);
+assert.equal((await put(`/docs/outfit/${outfitId}`, { baseRevision: outfit.revision, data: { ...outfit.data, favourite: true } })).status, 200);
 assert.equal((await put(`/docs/comment/${randomUUID()}`, {
   baseRevision: 0, data: { subjectKind: "outfit", subjectId: outfitId, text: "Comfortable all day." },
 })).status, 200);
 const seen = await json("get", { kind: "outfit", id: outfitId });
-assert.equal(seen.stage, "tried");
+assert.equal(seen.favourite, true);
+assert.equal((await json("overview", {})).favouriteOutfits, 1);
 assert.equal(seen.comments[0].by, "human");
 
 const review = await json("save_review", { data: { conclusion: "nothing-needed", summary: "The grey trousers already do the job." } });

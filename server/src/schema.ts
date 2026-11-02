@@ -24,8 +24,8 @@ const attrs = z.object(Object.fromEntries(ATTRIBUTE_KEYS.map((key) => [key, Attr
 export const schemas = {
   /** A piece's photos are the photo records it owns; mainPhotoId picks the one it's shown with. */
   piece: z.object({ name: z.string().trim().max(120), attrs, mainPhotoId: id.optional() }).strict(),
-  /** `note`: why it should work, and what a collage can't show. */
-  outfit: z.object({ title: text(120), stage: z.enum(["proposed", "tried", "favourite"]), pieceIds: z.array(id).min(1).max(12), note }).strict(),
+  /** `note`: why it should work, and what a collage can't show. Favourites come first in the app. */
+  outfit: z.object({ title: text(120), favourite: z.boolean().default(false), pieceIds: z.array(id).min(1).max(12), note }).strict(),
   /** A photo of a record, or of the person (ownerKind "person", ownerId their account id), for try-ons. */
   photo: z.object({ ownerKind: z.enum(["piece", "outfit", "reference", "person"]), ownerId: id }).strict(),
   comment: z.object({ subjectKind: z.enum(["piece", "outfit", "reference", "wish"]), subjectId: id, text: text(2000) }).strict(),

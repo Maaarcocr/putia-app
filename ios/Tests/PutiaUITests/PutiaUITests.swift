@@ -32,18 +32,17 @@ final class PutiaUITests: XCTestCase {
         useAsMain.tap()
         XCTAssertTrue(useAsMain.waitForNonExistence(timeout: 30), "the AI's photo is now the main one")
 
-        // The workbench: an AI's proposal, which the person marks tried and edits.
+        // The workbench: an AI's proposal, which the person marks a favourite and edits.
         app.tabBars.buttons.element(boundBy: 1).tap()
         let card = element(app, "outfits.card")
         XCTAssertTrue(card.waitForExistence(timeout: 30))
         capture("03-outfits")
         card.tap()
-        let stage = app.segmentedControls["outfit.stage"]
-        XCTAssertTrue(stage.waitForExistence(timeout: 30))
+        let favourite = element(app, "outfit.favourite")
+        XCTAssertTrue(favourite.waitForExistence(timeout: 30))
         capture("04-outfit")
-        let tried = stage.buttons.element(boundBy: 1)
-        tried.tap()
-        expectation(for: NSPredicate(format: "isSelected == true"), evaluatedWith: tried)
+        favourite.tap()
+        expectation(for: NSPredicate(format: "isSelected == true"), evaluatedWith: favourite)
         waitForExpectations(timeout: 30)
         let edit = element(app, "outfit.edit")
         for _ in 0..<6 where !edit.isHittable { app.swipeUp() }

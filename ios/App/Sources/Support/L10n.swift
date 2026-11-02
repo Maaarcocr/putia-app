@@ -83,14 +83,7 @@ enum L10n {
     static var photosOfYouFooter: String { String(localized: "photos.you.footer") }
 
     // MARK: Outfits
-    static var stageLabel: String { String(localized: "outfits.stage") }
-    static func stage(_ stage: Outfit.Stage) -> String {
-        switch stage {
-        case .proposed: String(localized: "stage.proposed")
-        case .tried: String(localized: "stage.tried")
-        case .favourite: String(localized: "stage.favourite")
-        }
-    }
+    static var favourite: String { String(localized: "outfit.favourite") }
     static var outfitsEmptyTitle: String { String(localized: "outfits.empty.title") }
     static var outfitsEmptyMessage: String { String(localized: "outfits.empty.message") }
     static var newOutfit: String { String(localized: "outfits.new") }

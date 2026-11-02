@@ -1,25 +1,16 @@
 import PutiaCore
 import SwiftUI
 
-/// The workbench: outfits as large cards, by stage. Proposed ones come from the person or an AI.
+/// The workbench: outfits as large cards, favourites first. They come from the person or an AI.
 struct OutfitsView: View {
     @Environment(AppModel.self) private var model
     @State private var path: [Route] = []
-    @State private var stage = Outfit.Stage.proposed
     @State private var creating = false
 
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                Picker(L10n.stageLabel, selection: $stage) {
-                    ForEach(Outfit.Stage.allCases, id: \.self) { stage in
-                        Text(L10n.stage(stage)).tag(stage)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-                .accessibilityIdentifier("outfits.stage")
-                let outfits = model.library.outfits(in: stage)
+                let outfits = model.library.workbench
                 if outfits.isEmpty {
                     ContentUnavailableView(L10n.outfitsEmptyTitle, systemImage: "rectangle.on.rectangle.angled", description: Text(L10n.outfitsEmptyMessage))
                 }
@@ -57,8 +48,15 @@ private struct OutfitCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Collage(pieceIds: outfit.value.pieceIds)
-            Text(outfit.value.title)
-                .font(.headline)
+            HStack {
+                Text(outfit.value.title)
+                    .font(.headline)
+                if outfit.value.favourite {
+                    Label(L10n.favourite, systemImage: "heart.fill")
+                        .labelStyle(.iconOnly)
+                        .foregroundStyle(.pink)
+                }
+            }
             if let note = outfit.value.note {
                 Text(note)
                     .font(.subheadline)

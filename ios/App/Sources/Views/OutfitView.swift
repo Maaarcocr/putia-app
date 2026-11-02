@@ -1,8 +1,8 @@
 import PutiaCore
 import SwiftUI
 
-/// One outfit: the pieces large, its stage, why it should work, photos of it worn and the
-/// conversation about it.
+/// One outfit: the pieces large, why it should work, photos of it worn and the conversation about
+/// it. The heart marks it a favourite.
 struct OutfitView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -23,13 +23,6 @@ struct OutfitView: View {
             Section {
                 Collage(pieceIds: outfit.value.pieceIds, height: 170)
                     .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
-                Picker(L10n.stageLabel, selection: Binding(get: { outfit.value.stage }, set: { stage in update { $0.stage = stage } })) {
-                    ForEach(Outfit.Stage.allCases, id: \.self) { stage in
-                        Text(L10n.stage(stage)).tag(stage)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("outfit.stage")
                 Text(L10n.madeBy(outfit.author))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -66,6 +59,15 @@ struct OutfitView: View {
         }
         .navigationTitle(outfit.value.title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(L10n.favourite, systemImage: outfit.value.favourite ? "heart.fill" : "heart") {
+                    update { $0.favourite.toggle() }
+                }
+                .accessibilityAddTraits(outfit.value.favourite ? .isSelected : [])
+                .accessibilityIdentifier("outfit.favourite")
+            }
+        }
     }
 
     /// Changes the latest version of the outfit and saves it.

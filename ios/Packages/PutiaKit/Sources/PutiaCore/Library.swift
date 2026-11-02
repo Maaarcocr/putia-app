@@ -156,8 +156,10 @@ public struct Library: Codable, Equatable, Sendable {
         newestFirst(Array(pieces.values))
     }
 
-    public func outfits(in stage: Outfit.Stage) -> [Record<Outfit>] {
-        newestFirst(outfits.values.filter { $0.value.stage == stage })
+    /// The outfits: favourites first, then the rest, each most recently changed first.
+    public var workbench: [Record<Outfit>] {
+        let outfits = newestFirst(Array(outfits.values))
+        return outfits.filter(\.value.favourite) + outfits.filter { !$0.value.favourite }
     }
 
     public func outfits(using pieceId: String) -> [Record<Outfit>] {

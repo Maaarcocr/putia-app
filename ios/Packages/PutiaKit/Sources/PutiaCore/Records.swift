@@ -76,17 +76,16 @@ public struct Piece: Codable, Equatable, Sendable {
 }
 
 public struct Outfit: Codable, Equatable, Sendable {
-    public enum Stage: String, Codable, Sendable, CaseIterable { case proposed, tried, favourite }
-
     public var title: String
-    public var stage: Stage
+    /// Favourites come first in the list.
+    public var favourite: Bool
     public var pieceIds: [String]
     /// Why it should work, and what a collage can't show.
     public var note: String?
 
-    public init(title: String, stage: Stage = .proposed, pieceIds: [String], note: String? = nil) {
+    public init(title: String, favourite: Bool = false, pieceIds: [String], note: String? = nil) {
         self.title = title
-        self.stage = stage
+        self.favourite = favourite
         self.pieceIds = pieceIds
         self.note = note
     }

@@ -10,7 +10,7 @@ const newId = () => `00000000-0000-4000-8000-${String(++ids).padStart(12, "0")}`
 
 const piece = (overrides: Record<string, unknown> = {}) => ({ name: "Navy chore jacket", attrs: {}, ...overrides });
 
-const outfit = (pieceIds: string[], overrides: Record<string, unknown> = {}) => ({ title: "Soft workwear", stage: "proposed", pieceIds, ...overrides });
+const outfit = (pieceIds: string[], overrides: Record<string, unknown> = {}) => ({ title: "Soft workwear", pieceIds, ...overrides });
 
 async function create(kind: "piece" | "outfit" | "reference" | "wish" | "review" | "comment", data: unknown, actor = "human") {
   const id = newId();
@@ -56,8 +56,9 @@ describe("an AI", () => {
     expect(renamed.doc.data).toEqual(piece({ name: "Arpenteur Travail jacket" }));
 
     const look = await create("outfit", outfit([jacket.id]));
-    const tried = await store.write({ kind: "outfit", id: look.id, actor: AI, baseRevision: 1, data: outfit([jacket.id], { stage: "tried" }) });
-    expect(tried.doc.data.stage).toBe("tried");
+    expect(look.data.favourite).toBe(false);
+    const favourite = await store.write({ kind: "outfit", id: look.id, actor: AI, baseRevision: 1, data: outfit([jacket.id], { favourite: true }) });
+    expect(favourite.doc.data.favourite).toBe(true);
 
     const wish = await create("wish", { name: "Straight grey trousers", status: "considering" });
     const bought = await store.write({ kind: "wish", id: wish.id, actor: AI, baseRevision: 1, data: { name: "Straight grey trousers", status: "bought" } });

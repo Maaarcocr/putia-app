@@ -11,7 +11,6 @@ Status: first vertical slice. §9 lists what the slice covers. Everything is kep
 - **One bench, two people.** Everything the AI does is a saved, attributed change on the same records you see. Nothing lives only in a chat.
 - **Honest evidence.** A photo cannot establish exact material, true colour, size or comfort. The AI saves the tags it sets as *suggestions* you confirm or correct.
 - **Owned, wanted and inspiring are different things.** Pieces you own, pieces you might buy and inspiration images never mix.
-- **Proposed → tried → favourite.** A collage helps explore; wearing it tells whether it works.
 - **Valid conclusions include "nothing needed".** Trying a different combination of what you own is a legitimate answer to "what's missing".
 - **Reversible.** Every change has a history and can be undone.
 - **Plain and quick.** Adding a piece takes seconds. No inventory form.
@@ -36,7 +35,7 @@ An outfit is a set of owned pieces, shown as a collage made automatically from e
 
 - **Assemble** an outfit from owned pieces, and edit its title and pieces later.
 - **Proposals from the AI** ("make three outfits around this jacket using what I own") come with a note: the intended effect, silhouette and textures, and what a collage can't show.
-- **Stages:** `proposed`, `tried` and `favourite`.
+- **Favourites.** The heart on an outfit marks it a favourite. The list shows favourites first, then the rest, most recently changed first.
 - **Photos and comments** stay with the outfit: a mirror photo, how it went, the AI's assessment. An AI can add photos too: a virtual try-on of you wearing the outfit, or a similar look it found online.
 - **Photos of you.** On the Bench you keep a few full-length photos of yourself. A connected AI that can make images uses them, with the pieces' photos, to show you wearing its outfits.
 
@@ -79,7 +78,7 @@ Covers the full loop, thinly:
 
 1. Add a piece from a photo (cut out on the phone); add more photos; set or confirm tags.
 2. The AI reads the piece and its photos, looks up the product online and adds its photo, suggests tags, and proposes outfits from owned pieces.
-3. You change an outfit's stage and pieces, add photos and comment.
+3. You mark an outfit a favourite, change its pieces, add photos and comment.
 4. The AI records a shortlist entry or a "nothing needed" review; you see it in the app.
 5. History with undo.
 6. The whole app in English and Italian.

@@ -28,7 +28,7 @@ private let trousers = doc("piece", trousersId, at: "2026-11-01T11:00:00.000Z", 
     {"name":"Grey trousers","attrs":{}}
     """)
 private let outfit = doc("outfit", outfitId, by: "agent:Claude", data: """
-    {"title":"Soft workwear","stage":"proposed","pieceIds":["\(jacketId)","\(trousersId)"],"note":"Boxy over straight"}
+    {"title":"Soft workwear","favourite":false,"pieceIds":["\(jacketId)","\(trousersId)"],"note":"Boxy over straight"}
     """)
 
 @Test func appliesTheServerFeed() throws {
@@ -42,7 +42,25 @@ private let outfit = doc("outfit", outfitId, by: "agent:Claude", data: """
     #expect(piece.value[.colour]?.author == .agent("Claude"))
     #expect(piece.value.needsReview)
     #expect(library.outfits(using: trousersId).map(\.id) == [outfitId])
-    #expect(library.outfits(in: .proposed).first?.author == .agent("Claude"))
+    #expect(library.workbench.first?.author == .agent("Claude"))
+}
+
+@Test func favouriteOutfitsComeFirst() throws {
+    let outfit = { (id: String, favourite: Bool, at: String) in
+        doc("outfit", id, at: at, data: """
+            {"title":"\(id)","favourite":\(favourite),"pieceIds":["\(jacketId)"]}
+            """)
+    }
+    let older = "00000000-0000-4000-8000-0000000000c1"
+    let newer = "00000000-0000-4000-8000-0000000000c2"
+    let favourite = "00000000-0000-4000-8000-0000000000c3"
+    var library = Library()
+    library.apply(try feed(3, [
+        outfit(older, false, "2026-11-01T10:00:00.000Z"),
+        outfit(newer, false, "2026-11-01T12:00:00.000Z"),
+        outfit(favourite, true, "2026-11-01T09:00:00.000Z"),
+    ]))
+    #expect(library.workbench.map(\.id) == [favourite, newer, older])
 }
 
 @Test func keepsTheNewestRevisionAndDropsDeletedRecords() throws {
@@ -57,7 +75,7 @@ private let outfit = doc("outfit", outfitId, by: "agent:Claude", data: """
     #expect(library.pieces[jacketId]?.value.name == "Chore jacket")
 
     let deleted = doc("outfit", outfitId, revision: 2, deleted: true, data: """
-        {"title":"Soft workwear","stage":"proposed","pieceIds":["\(jacketId)"]}
+        {"title":"Soft workwear","favourite":false,"pieceIds":["\(jacketId)"]}
         """)
     library.apply(try feed(5, [deleted]))
     #expect(library.outfits.isEmpty)
@@ -121,7 +139,7 @@ private let outfit = doc("outfit", outfitId, by: "agent:Claude", data: """
 @Test func decodesHistoryWithALabel() throws {
     let json = """
         [{"seq":7,"kind":"outfit","id":"\(outfitId)","revision":1,"op":"create","actor":"agent:Claude",
-          "before":null,"after":{"deleted":false,"data":{"title":"Soft workwear","stage":"proposed"}},
+          "before":null,"after":{"deleted":false,"data":{"title":"Soft workwear","favourite":false}},
           "note":"Built around the jacket","undoes":null,"at":"2026-11-01T10:00:00.000Z"}]
         """
     let change = try #require(try JSONDecoder().decode([Change].self, from: Data(json.utf8)).first)
