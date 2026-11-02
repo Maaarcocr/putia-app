@@ -41,8 +41,10 @@ final class PutiaUITests: XCTestCase {
         let favourite = element(app, "outfit.favourite")
         XCTAssertTrue(favourite.waitForExistence(timeout: 30))
         capture("04-outfit")
+        // The heart's label turns from "add to favourites" to "remove from favourites".
+        let notFavourite = favourite.label
         favourite.tap()
-        expectation(for: NSPredicate(format: "isSelected == true"), evaluatedWith: favourite)
+        expectation(for: NSPredicate(format: "label != %@", notFavourite), evaluatedWith: favourite)
         waitForExpectations(timeout: 30)
         let edit = element(app, "outfit.edit")
         for _ in 0..<6 where !edit.isHittable { app.swipeUp() }

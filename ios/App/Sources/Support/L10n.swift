@@ -84,6 +84,8 @@ enum L10n {
 
     // MARK: Outfits
     static var favourite: String { String(localized: "outfit.favourite") }
+    static var addFavourite: String { String(localized: "outfit.favourite.add") }
+    static var removeFavourite: String { String(localized: "outfit.favourite.remove") }
     static var outfitsEmptyTitle: String { String(localized: "outfits.empty.title") }
     static var outfitsEmptyMessage: String { String(localized: "outfits.empty.message") }
     static var newOutfit: String { String(localized: "outfits.new") }

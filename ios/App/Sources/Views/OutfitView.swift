@@ -61,10 +61,12 @@ struct OutfitView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button(L10n.favourite, systemImage: outfit.value.favourite ? "heart.fill" : "heart") {
+                Button(
+                    outfit.value.favourite ? L10n.removeFavourite : L10n.addFavourite,
+                    systemImage: outfit.value.favourite ? "heart.fill" : "heart"
+                ) {
                     update { $0.favourite.toggle() }
                 }
-                .accessibilityAddTraits(outfit.value.favourite ? .isSelected : [])
                 .accessibilityIdentifier("outfit.favourite")
             }
         }
