@@ -4,7 +4,7 @@ import * as z from "zod";
 // agents. The app mirrors these shapes in PutiaCore (ios/Packages/PutiaKit); keep them in sync.
 // Who made a record and when is kept beside its data (createdBy, updatedAt), not in it.
 
-export const KINDS = ["piece", "outfit", "photo", "comment", "reference", "wish", "review"] as const;
+export const KINDS = ["piece", "outfit", "photo", "comment", "wish"] as const;
 export type Kind = (typeof KINDS)[number];
 export const isKind = (value: string): value is Kind => (KINDS as readonly string[]).includes(value);
 
@@ -27,14 +27,13 @@ export const schemas = {
   /** `note`: why it should work, and what a collage can't show. Favourites come first in the app. */
   outfit: z.object({ title: text(120), favourite: z.boolean().default(false), pieceIds: z.array(id).min(1).max(12), note }).strict(),
   /** A photo of a record, or of the person (ownerKind "person", ownerId their account id), for try-ons. */
-  photo: z.object({ ownerKind: z.enum(["piece", "outfit", "reference", "person"]), ownerId: id }).strict(),
-  comment: z.object({ subjectKind: z.enum(["piece", "outfit", "reference", "wish"]), subjectId: id, text: text(2000) }).strict(),
-  /** An inspiration image (its photo) and what the person likes about it. */
-  reference: z.object({ title: text(120), note }).strict(),
-  /** Something the person might acquire. `note`: the problem it solves in terms of what they own. */
-  wish: z.object({ name: text(120), note, link: z.string().url().max(500).optional(), status: z.enum(["considering", "bought", "dismissed"]) }).strict(),
-  /** A conclusion about what's missing. "Nothing needed" is as valid as finding gaps. */
-  review: z.object({ conclusion: z.enum(["gaps", "try-combinations", "nothing-needed"]), summary: text(1500) }).strict(),
+  photo: z.object({ ownerKind: z.enum(["piece", "outfit", "wish", "person"]), ownerId: id }).strict(),
+  comment: z.object({ subjectKind: z.enum(["piece", "outfit", "wish"]), subjectId: id, text: text(2000) }).strict(),
+  /**
+   * A suggestion on the What's missing list: something the person might get. `note`: the problem it
+   * solves in terms of what they own. `links`: where to find it. Its photos are the photo records it owns.
+   */
+  wish: z.object({ name: text(120), note, links: z.array(z.string().url().max(500)).max(10).default([]) }).strict(),
 } as const satisfies Record<Kind, z.ZodType>;
 
 export type Data = Record<string, unknown>;

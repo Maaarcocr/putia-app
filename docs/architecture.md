@@ -11,7 +11,7 @@ iPhone app ──HTTPS /v1/accounts/:id/…──▶  Cloudflare Worker  ◀─�
 
 ## Records
 
-Everything on the bench is a record of one of seven kinds: `piece`, `outfit`, `photo`, `comment`, `reference` (inspiration), `wish` (shortlist entry) and `review` (a conclusion about what's missing). Their shapes are defined once on the server (`server/src/schema.ts`, zod) and mirrored in Swift (`ios/Packages/PutiaKit/Sources/PutiaCore/Records.swift`). Change both together.
+Everything on the bench is a record of one of five kinds: `piece`, `outfit`, `photo`, `comment` and `wish` (a suggestion on What's missing). Their shapes are defined once on the server (`server/src/schema.ts`, zod) and mirrored in Swift (`ios/Packages/PutiaKit/Sources/PutiaCore/Records.swift`). Change both together.
 
 The server stores each record as JSON in one generic table, `docs`, with a **revision**. Every write:
 
@@ -42,7 +42,7 @@ TypeScript on Cloudflare Workers. No framework.
 | `src/authorize.ts` | The sign-in page an AI opens: asks for the pairing code (English or Italian) |
 | `src/guidance.ts` | Generated from `docs/styling/` by `npm run sync-guidance` |
 
-Tests: `test/store.test.ts` and `test/guidance.test.ts` run with vitest on Node's built-in SQLite standing in for D1 (`test/d1.ts`), so the real SQL runs. `test/e2e.mjs` drives a local Worker through the whole loop: the app adds a piece and photo, an AI pairs, signs in, suggests tags and proposes an outfit, the AI adds a photo it found online, the person tries the outfit and comments, the AI records a review, both sides undo, and disconnecting and deleting cut everything off.
+Tests: `test/store.test.ts` and `test/guidance.test.ts` run with vitest on Node's built-in SQLite standing in for D1 (`test/d1.ts`), so the real SQL runs. `test/e2e.mjs` drives a local Worker through the whole loop: the app adds a piece and photo, an AI pairs, signs in, suggests tags and proposes an outfit, the AI adds a photo it found online, the person tries the outfit and comments, the AI suggests something missing with a link and a photo, both sides undo, and disconnecting and deleting cut everything off.
 
 ## App (`ios/`)
 
@@ -56,7 +56,7 @@ Swift 6, SwiftUI with Observation, iOS 26+, iPhone only. XcodeGen generates the 
 
 **The account** is a random id and secret made on the phone and kept in the Keychain (synced by iCloud Keychain). No sign-up. "Delete everything" deletes it on the server with all records and photos, and starts a new one.
 
-**Photos** belong to a piece, outfit or inspiration image through the photo record's `ownerId`; a piece's `mainPhotoId` picks the one it's shown with (the first, without one). **Adding a piece**: pick a photo → save an empty piece → `Imaging.prepare` (cut-out and thumbnail) → upload the photo → save the photo record. Further photos are added the same way, without the cut-out.
+**Photos** belong to a piece, outfit or suggestion through the photo record's `ownerId`; a piece's `mainPhotoId` picks the one it's shown with (the first, without one). **Adding a piece**: pick a photo → save an empty piece → `Imaging.prepare` (cut-out and thumbnail) → upload the photo → save the photo record. Further photos are added the same way, without the cut-out.
 
 **Strings**: every user-facing string is in `Support/L10n.swift`, with English and Italian in `Resources/Localizable.xcstrings`. `scripts/check-strings.py` fails CI on a missing translation, an unused key, or a raw literal in a SwiftUI text API.
 

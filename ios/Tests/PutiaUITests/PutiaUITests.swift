@@ -69,10 +69,30 @@ final class PutiaUITests: XCTestCase {
         save.tap()
         XCTAssertTrue(save.waitForNonExistence(timeout: 30))
 
-        // What's missing: the AI's conclusion and shortlist.
+        // What's missing: suggestions an AI found, with photos and links. The person opens one, then
+        // adds their own with a link.
         app.tabBars.buttons.element(boundBy: 2).tap()
-        XCTAssertTrue(element(app, "missing.wish").waitForExistence(timeout: 30))
+        let suggestion = element(app, "missing.wish")
+        XCTAssertTrue(suggestion.waitForExistence(timeout: 30))
         capture("05-missing")
+        suggestion.tap()
+        XCTAssertTrue(element(app, "photos.add.wish").waitForExistence(timeout: 30))
+        XCTAssertTrue(element(app, "wish.link").exists)
+        capture("05b-suggestion")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        let add = element(app, "missing.add")
+        XCTAssertTrue(add.waitForExistence(timeout: 30))
+        add.tap()
+        let name = element(app, "wish.name")
+        XCTAssertTrue(name.waitForExistence(timeout: 30))
+        name.tap()
+        name.typeText("Linen shirt")
+        let links = element(app, "wish.links")
+        links.tap()
+        links.typeText("https://shop.example/linen-shirt")
+        capture("05c-add-suggestion")
+        element(app, "wish.save").tap()
+        XCTAssertTrue(element(app, "wish.link").waitForExistence(timeout: 30), "the new suggestion opens with its link")
 
         // The bench: photos of the person for try-ons, every change, and connecting an AI.
         app.tabBars.buttons.element(boundBy: 3).tap()

@@ -7,7 +7,6 @@ nonisolated enum Route: Hashable, Sendable {
     case piece(String)
     case outfit(String)
     case wish(String)
-    case reference(String)
 }
 
 extension View {
@@ -18,7 +17,6 @@ extension View {
             case .piece(let id): PieceView(id: id)
             case .outfit(let id): OutfitView(id: id)
             case .wish(let id): WishView(id: id)
-            case .reference(let id): ReferenceView(id: id)
             }
         }
     }
@@ -220,10 +218,12 @@ private struct PhotoThumbnail: View {
 
     var body: some View {
         let piece = photo.value.ownerKind == .piece
+        // A piece's or suggestion's photo shows the whole product; any other fills its tile.
+        let product = piece || photo.value.ownerKind == .wish
         let main = isMain
         Button { open = true } label: {
-            PhotoView(photoId: photo.id, fill: !piece)
-                .padding(piece ? 6 : 0)
+            PhotoView(photoId: photo.id, fill: !product)
+                .padding(product ? 6 : 0)
                 .frame(width: Self.width, height: Self.height)
                 .background(.fill.tertiary)
                 .clipShape(.rect(cornerRadius: 12))

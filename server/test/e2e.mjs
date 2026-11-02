@@ -1,7 +1,8 @@
 // End-to-end check against a local server (`npm run db:local && npx cf dev`):
 //   node test/e2e.mjs [base URL, default http://localhost:5173]
 // The app adds a piece with a photo, an AI pairs and signs in, reads it, renames and tags it, proposes
-// an outfit; the person tries it and comments; the AI records a review; changes are undone.
+// an outfit; the person tries it and comments; the AI suggests something missing, with a link and a
+// photo; changes are undone.
 import assert from "node:assert/strict";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
@@ -109,7 +110,7 @@ const init = await rpc("initialize", { protocolVersion: "2025-06-18", capabiliti
 assert.match(init.instructions, /wardrobe studio/);
 const tools = (await rpc("tools/list")).tools.map((tool) => tool.name).sort();
 assert.deepEqual(tools, ["add_photo", "comment", "delete", "get", "get_photo", "guidance", "history", "list", "overview",
-  "save_outfit", "save_piece", "save_reference", "save_review", "save_wish", "undo"]);
+  "save_outfit", "save_piece", "save_wish", "undo"]);
 assert.match((await call("guidance")).text, /Candid Menswear Assessment/);
 
 const overview = await json("overview");
@@ -160,7 +161,7 @@ const tryOn = await json("add_photo", {
 assert.equal(tryOn.saved.ownerKind, "outfit", JSON.stringify(tryOn));
 assert.deepEqual(new Uint8Array(await (await app(`/photos/${tryOn.saved.id}/full`)).arrayBuffer()), new Uint8Array(png));
 
-// 4. The person marks it a favourite and comments; the AI sees that and records a review.
+// 4. The person marks it a favourite and comments; the AI sees that and suggests something missing.
 const feed = await (await app("/changes?since=0")).json();
 const outfit = feed.docs.find((doc) => doc.id === outfitId);
 assert.equal(outfit.createdBy, "agent:Test Agent");
@@ -174,13 +175,19 @@ assert.equal(seen.favourite, true);
 assert.equal((await json("overview", {})).favouriteOutfits, 1);
 assert.equal(seen.comments[0].by, "human");
 
-const review = await json("save_review", { data: { conclusion: "nothing-needed", summary: "The grey trousers already do the job." } });
-assert.equal(review.saved.conclusion, "nothing-needed");
+const suggestion = await json("save_wish", {
+  data: { name: "Ecru knit polo", note: "A lighter layer under the jacket for spring.", links: [productPage] },
+});
+assert.deepEqual(suggestion.saved.links, [productPage]);
+const productPhoto = await json("add_photo", {
+  owner_kind: "wish", owner_id: suggestion.saved.id, image_url: `data:image/png;base64,${png.toString("base64")}`, note: `Found on ${productPage}`,
+});
+assert.equal(productPhoto.saved.ownerKind, "wish", JSON.stringify(productPhoto));
+assert.deepEqual((await json("overview")).missing, [{ id: suggestion.saved.id, name: "Ecru knit polo" }]);
 
 // 5. History and undo, from both sides.
 const history = await json("history", { limit: 5 });
-assert.equal(history[0].op, "create");
-assert.equal(history[0].kind, "review");
+assert.deepEqual(history.slice(0, 2).map((change) => change.kind), ["photo", "wish"]);
 const commentChange = (await (await app("/history")).json()).find((change) => change.kind === "comment").seq;
 await json("undo", { change: commentChange });
 assert.deepEqual((await json("get", { kind: "outfit", id: outfitId })).comments, [], "the AI undoes the person's comment");

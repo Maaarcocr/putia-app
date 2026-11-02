@@ -6,7 +6,7 @@ import Foundation
 // (`Record.createdBy`), not in it.
 
 public enum Kind: String, Codable, Sendable, CaseIterable {
-    case piece, outfit, photo, comment, reference, wish, review
+    case piece, outfit, photo, comment, wish
 }
 
 /// Who wrote something. Stored as "human" or "agent:<name>".
@@ -91,10 +91,10 @@ public struct Outfit: Codable, Equatable, Sendable {
     }
 }
 
-/// A photo of a piece, of an outfit, an inspiration image, or of the person for virtual try-ons
+/// A photo of a piece, an outfit, a suggestion, or of the person for virtual try-ons
 /// (owner `.person`, owner id their account id).
 public struct Photo: Codable, Equatable, Sendable {
-    public enum Owner: String, Codable, Sendable { case piece, outfit, reference, person }
+    public enum Owner: String, Codable, Sendable { case piece, outfit, wish, person }
 
     public var ownerKind: Owner
     public var ownerId: String
@@ -117,48 +117,18 @@ public struct Comment: Codable, Equatable, Sendable {
     }
 }
 
-/// An inspiration image (its photo) and what the person likes about it. It never becomes a piece.
-public struct Reference: Codable, Equatable, Sendable {
-    public var title: String
-    public var note: String?
-
-    public init(title: String, note: String? = nil) {
-        self.title = title
-        self.note = note
-    }
-}
-
-/// A shortlist entry: something the person might acquire, and why.
+/// A suggestion on the What's missing list: something the person might get. Its photos are the
+/// photo records it owns. It never becomes a piece by itself.
 public struct Wish: Codable, Equatable, Sendable {
-    public enum Status: String, Codable, Sendable, CaseIterable { case considering, bought, dismissed }
-
     public var name: String
     /// The problem it solves, in terms of what the person owns.
     public var note: String?
-    public var link: String?
-    public var status: Status
+    /// Where to find it.
+    public var links: [String]
 
-    public init(name: String, note: String? = nil, link: String? = nil, status: Status = .considering) {
+    public init(name: String, note: String? = nil, links: [String] = []) {
         self.name = name
         self.note = note
-        self.link = link
-        self.status = status
-    }
-}
-
-/// A conclusion about what's missing. "Nothing needed" is as valid as finding gaps.
-public struct Review: Codable, Equatable, Sendable {
-    public enum Conclusion: String, Codable, Sendable {
-        case gaps
-        case tryCombinations = "try-combinations"
-        case nothingNeeded = "nothing-needed"
-    }
-
-    public var conclusion: Conclusion
-    public var summary: String
-
-    public init(conclusion: Conclusion, summary: String) {
-        self.conclusion = conclusion
-        self.summary = summary
+        self.links = links
     }
 }

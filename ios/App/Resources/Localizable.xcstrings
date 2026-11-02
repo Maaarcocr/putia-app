@@ -641,54 +641,6 @@
         }
       }
     },
-    "conclusion.gaps": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Something is missing"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Manca qualcosa"
-          }
-        }
-      }
-    },
-    "conclusion.nothingNeeded": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You don't need anything"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Non ti serve niente"
-          }
-        }
-      }
-    },
-    "conclusion.tryCombinations": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Try a different combination first"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Prima prova un'altra combinazione"
-          }
-        }
-      }
-    },
     "connect.connected %@": {
       "localizations": {
         "en": {
@@ -849,194 +801,18 @@
         }
       }
     },
-    "kind.reference": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inspiration"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ispirazione"
-          }
-        }
-      }
-    },
-    "kind.review": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Conclusion"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Conclusione"
-          }
-        }
-      }
-    },
     "kind.wish": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Shortlist entry"
+            "value": "Suggestion"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Possibile acquisto"
-          }
-        }
-      }
-    },
-    "missing.addInspiration": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add an image"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aggiungi un'immagine"
-          }
-        }
-      }
-    },
-    "missing.addWish": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add to the shortlist"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aggiungi alla lista"
-          }
-        }
-      }
-    },
-    "missing.decided": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Decided"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deciso"
-          }
-        }
-      }
-    },
-    "missing.inspiration": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inspiration"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ispirazione"
-          }
-        }
-      }
-    },
-    "missing.latestConclusion": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Latest conclusion"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ultima conclusione"
-          }
-        }
-      }
-    },
-    "missing.noConclusion": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No conclusion yet. Ask a connected AI what, if anything, is missing."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ancora nessuna conclusione. Chiedi a un'IA collegata cosa manca, se manca qualcosa."
-          }
-        }
-      }
-    },
-    "missing.shortlist": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Shortlist"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Possibili acquisti"
-          }
-        }
-      }
-    },
-    "missing.shortlist.footer": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Each entry says what it solves, what it goes with and what you already own that might do."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ogni voce dice cosa risolve, con cosa si abbina e cosa hai già che potrebbe bastare."
-          }
-        }
-      }
-    },
-    "missing.untitledInspiration": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inspiration"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ispirazione"
+            "value": "Suggerimento"
           }
         }
       }
@@ -1585,54 +1361,6 @@
         }
       }
     },
-    "reference.delete.title": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete this image?"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Eliminare questa immagine?"
-          }
-        }
-      }
-    },
-    "reference.note.hint": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Anything else about it"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Altro da aggiungere"
-          }
-        }
-      }
-    },
-    "reference.title": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Title"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Titolo"
-          }
-        }
-      }
-    },
     "tab.bench": {
       "localizations": {
         "en": {
@@ -1702,13 +1430,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Delete this entry?"
+            "value": "Delete this suggestion?"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Eliminare questa voce?"
+            "value": "Eliminare questo suggerimento?"
           }
         }
       }
@@ -1729,38 +1457,6 @@
         }
       }
     },
-    "wish.openLink": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open link"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Apri il link"
-          }
-        }
-      }
-    },
-    "wish.problem": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "What it solves"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cosa risolve"
-          }
-        }
-      }
-    },
     "wish.problem.hint": {
       "localizations": {
         "en": {
@@ -1773,70 +1469,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Quale problema risolverebbe?"
-          }
-        }
-      }
-    },
-    "wish.status": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Status"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stato"
-          }
-        }
-      }
-    },
-    "wishStatus.bought": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bought"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Comprato"
-          }
-        }
-      }
-    },
-    "wishStatus.considering": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Considering"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Da valutare"
-          }
-        }
-      }
-    },
-    "wishStatus.dismissed": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dismissed"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Scartato"
           }
         }
       }
@@ -1949,6 +1581,86 @@
           "stringUnit": {
             "state": "translated",
             "value": "Eliminare questa foto?"
+          }
+        }
+      }
+    },
+    "missing.empty.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing missing"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non manca niente"
+          }
+        }
+      }
+    },
+    "missing.empty.message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add something you might get, or ask a connected AI what's missing from what you own."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiungi qualcosa che potresti prendere, o chiedi a un'IA collegata cosa manca a ciò che hai."
+          }
+        }
+      }
+    },
+    "missing.add": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add a suggestion"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiungi un suggerimento"
+          }
+        }
+      }
+    },
+    "wish.links": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Links"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Link"
+          }
+        }
+      }
+    },
+    "wish.links.hint": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Links, one per line"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Link, uno per riga"
           }
         }
       }

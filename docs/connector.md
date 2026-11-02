@@ -18,13 +18,13 @@ The tools (`server/src/mcp.ts`):
 
 | Tool | Does |
 | --- | --- |
-| `overview` | Counts (outfits and favourites among them), pieces whose tags need review, the shortlist, the photos of the person (for try-ons), the latest changes |
+| `overview` | Counts (outfits and favourites among them), pieces whose tags need review, the suggestions of what's missing, the photos of the person (for try-ons), the latest changes |
 | `guidance` | The whole styling skill from `docs/styling/`: the assessment approach, its principles and its sources |
 | `list`, `get` | Records of one kind; one record with its comments and photos (and, for a piece, its outfits) |
 | `get_photo` | A photo as an image: the cut-out thumbnail or the full photo |
-| `add_photo` | A photo for a piece, outfit or inspiration image: a piece's product found online, or for an outfit a virtual try-on the AI made or a similar look it found. It passes an https address (the server downloads it) or the image itself as a data: URL, and a note on where it comes from |
-| `save_piece`, `save_outfit`, `save_reference`, `save_wish`, `save_review` | Create or update, passing the revision it read |
-| `comment` | A comment on a piece, outfit, inspiration image or shortlist entry |
+| `add_photo` | A photo for a piece, outfit or suggestion: a piece's product found online, for an outfit a virtual try-on the AI made or a similar look it found, for a suggestion the product from the shop. It passes an https address (the server downloads it) or the image itself as a data: URL, and a note on where it comes from |
+| `save_piece`, `save_outfit`, `save_wish` | Create or update, passing the revision it read. A wish is a suggestion on What's missing, with its links |
+| `comment` | A comment on a piece, outfit or suggestion |
 | `delete` | Any record (undoable) |
 | `history`, `undo` | The change log; undo any change |
 

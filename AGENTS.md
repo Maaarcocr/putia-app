@@ -4,7 +4,7 @@
 
 Putia is a private wardrobe studio for iPhone (Swift 6, SwiftUI, iOS 26+) with a small server (`server/`, a Cloudflare Worker with D1 and R2). The AI is **not** in the app: the person connects their own AI to the server over MCP, and both work on the same records.
 
-Status: first vertical slice (0.1). See `docs/product-spec.md` §9.
+Status: first vertical slice (0.1). See `docs/product-spec.md` §8.
 
 ## Source-of-truth documents
 

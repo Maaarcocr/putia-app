@@ -7,7 +7,7 @@
 
 ---
 
-Putia ("workshop" in Sicilian) is a visual catalogue of the clothes you own, an outfit workbench and a considered shortlist of what, if anything, is missing.
+Putia ("workshop" in Sicilian) is a visual catalogue of the clothes you own, an outfit workbench and a short list of what, if anything, is missing.
 
 **There is no AI in the app.** Putia keeps the shared records; you connect the AI you already use (Claude, or anything that supports remote MCP connectors) and it works on the same pieces and outfits you see. Everything it changes is attributed to it, kept in the history and can be undone.
 
@@ -15,7 +15,7 @@ Putia ("workshop" in Sicilian) is a visual catalogue of the clothes you own, an 
 
 - **Wardrobe.** Add a piece from a photo: the phone cuts it out. A piece can have more photos, such as its label, or the product photo an AI found online. Every tag says who set it and whether you confirmed it; material and fit are never presented as facts read from a photo.
 - **Outfit workbench.** Large cards, favourites first. AI proposals explain the intended effect, silhouette and texture, and what a photo can't show. Photos and comments stay with the outfit.
-- **What's missing.** A shortlist where each entry names the problem it solves. "Try a different combination" and "you don't need anything" are valid conclusions. Inspiration images stay apart from what you own.
+- **What's missing.** Suggestions of things to get, from you or the AI. Each names the problem it solves in terms of what you own, with links and the product's photos.
 - **Collaboration.** Shared records, comments, revisions, history and undo, from the app and from the AI.
 
 The full behaviour is in **[docs/product-spec.md](docs/product-spec.md)**.

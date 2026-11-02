@@ -105,42 +105,17 @@ enum L10n {
     static var addComment: String { String(localized: "comments.add") }
 
     // MARK: What's missing
-    static var latestConclusion: String { String(localized: "missing.latestConclusion") }
-    static var noConclusion: String { String(localized: "missing.noConclusion") }
-    static func conclusion(_ conclusion: Review.Conclusion) -> String {
-        switch conclusion {
-        case .gaps: String(localized: "conclusion.gaps")
-        case .tryCombinations: String(localized: "conclusion.tryCombinations")
-        case .nothingNeeded: String(localized: "conclusion.nothingNeeded")
-        }
-    }
-    static var shortlist: String { String(localized: "missing.shortlist") }
-    static var shortlistFooter: String { String(localized: "missing.shortlist.footer") }
-    static var addWish: String { String(localized: "missing.addWish") }
-    static var decided: String { String(localized: "missing.decided") }
-    static var inspiration: String { String(localized: "missing.inspiration") }
-    static var addInspiration: String { String(localized: "missing.addInspiration") }
-    static var untitledInspiration: String { String(localized: "missing.untitledInspiration") }
+    static var missingEmptyTitle: String { String(localized: "missing.empty.title") }
+    static var missingEmptyMessage: String { String(localized: "missing.empty.message") }
+    static var addWish: String { String(localized: "missing.add") }
 
-    // MARK: Shortlist entry
+    // MARK: Suggestion
     static var wishName: String { String(localized: "wish.name") }
-    static var problem: String { String(localized: "wish.problem") }
     static var problemHint: String { String(localized: "wish.problem.hint") }
-    static var statusLabel: String { String(localized: "wish.status") }
-    static var openLink: String { String(localized: "wish.openLink") }
+    static var links: String { String(localized: "wish.links") }
+    static var linksHint: String { String(localized: "wish.links.hint") }
     static var deleteWishTitle: String { String(localized: "wish.delete.title") }
-    static func status(_ status: Wish.Status) -> String {
-        switch status {
-        case .considering: String(localized: "wishStatus.considering")
-        case .dismissed: String(localized: "wishStatus.dismissed")
-        case .bought: String(localized: "wishStatus.bought")
-        }
-    }
 
-    // MARK: Inspiration
-    static var referenceTitle: String { String(localized: "reference.title") }
-    static var referenceNoteHint: String { String(localized: "reference.note.hint") }
-    static var deleteInspirationTitle: String { String(localized: "reference.delete.title") }
     // MARK: Bench
     static var benchIntro: String { String(localized: "bench.intro") }
     static var aiHeader: String { String(localized: "bench.ai") }
@@ -167,9 +142,7 @@ enum L10n {
         case .outfit: String(localized: "kind.outfit")
         case .photo: String(localized: "kind.photo")
         case .comment: String(localized: "kind.comment")
-        case .reference: String(localized: "kind.reference")
         case .wish: String(localized: "kind.wish")
-        case .review: String(localized: "kind.review")
         }
     }
 

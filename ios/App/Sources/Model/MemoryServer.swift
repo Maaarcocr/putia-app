@@ -126,9 +126,7 @@ final class MemoryServer: Server {
         case .piece(let piece): piece.name
         case .outfit(let outfit): outfit.title
         case .comment(let comment): comment.text
-        case .reference(let reference): reference.title
         case .wish(let wish): wish.name
-        case .review(let review): review.summary
         case .photo: nil
         }
     }
@@ -189,18 +187,30 @@ final class MemoryServer: Server {
             .comment(Comment(subjectKind: .outfit, subjectId: outfit, text: "Coherent as it is. If it feels flat, swap the shirt for the cable knit before buying anything.")),
             id: "00000000-0000-4000-8000-000000000020", baseRevision: 0, actor: claude
         )
+        // What's missing: two suggestions an AI found, with the shop's link and photo.
+        let loafers = "00000000-0000-4000-8000-000000000030"
         try? server.write(
-            .wish(Wish(name: "Ecru knit polo", note: "The jacket has no lighter layer for spring that still looks considered. Goes with the jacket and the flannels.")),
-            id: "00000000-0000-4000-8000-000000000030", baseRevision: 0, actor: claude
+            .wish(Wish(
+                name: "Dark brown suede loafers",
+                note: "Softer than the boots with the flannels and the oxford, for warmer days.",
+                links: ["https://shop.example/suede-loafers"]
+            )),
+            id: loafers, baseRevision: 0, actor: claude
         )
+        photo("00000000-0000-4000-8000-000000000031", of: .wish, loafers, by: claude, note: "From shop.example") {
+            Self.drawn(Self.symbol("shoe.fill"), UIColor(red: 0.30, green: 0.20, blue: 0.13, alpha: 1), on: UIColor(white: 0.96, alpha: 1))
+        }
+        let polo = "00000000-0000-4000-8000-000000000040"
         try? server.write(
-            .review(Review(conclusion: .tryCombinations, summary: "Try the cable knit under the chore jacket first; nothing needs buying yet.")),
-            id: "00000000-0000-4000-8000-000000000040", baseRevision: 0, actor: claude
+            .wish(Wish(
+                name: "Ecru knit polo",
+                note: "The jacket has no lighter layer for spring that still looks considered. Goes with the jacket and the flannels.",
+                links: ["https://shop.example/knit-polo", "https://another.example/polo"]
+            )),
+            id: polo, baseRevision: 0, actor: claude
         )
-        let reference = "00000000-0000-4000-8000-000000000070"
-        try? server.write(.reference(Reference(title: "Relaxed tailoring")), id: reference, baseRevision: 0, actor: you)
-        photo("00000000-0000-4000-8000-000000000071", of: .reference, reference, by: you) {
-            Self.drawn(Self.symbol("figure.walk"), ecru, on: UIColor(red: 0.33, green: 0.40, blue: 0.35, alpha: 1))
+        photo("00000000-0000-4000-8000-000000000041", of: .wish, polo, by: claude, note: "From shop.example") {
+            Self.drawn(Self.symbol("tshirt.fill"), ecru, on: UIColor(white: 0.96, alpha: 1))
         }
         return server
     }

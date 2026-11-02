@@ -209,16 +209,7 @@ final class AppModel {
         return pieceId
     }
 
-    /// Adds an inspiration image. Returns its id.
-    func addInspiration(_ data: Data) async -> String? {
-        guard let referenceId = await create(.reference(Reference(title: L10n.untitledInspiration))),
-              await addPhoto(data, to: .reference, ownerId: referenceId)
-        else { return nil }
-        return referenceId
-    }
-
-    /// Adds a photo to a piece, an outfit, an inspiration image or the person. Returns whether it
-    /// was saved.
+    /// Adds a photo to a piece, an outfit, a suggestion or the person. Returns whether it was saved.
     @discardableResult
     func addPhoto(_ data: Data, to owner: Photo.Owner, ownerId: String, cutOut: Bool = false) async -> Bool {
         working = true

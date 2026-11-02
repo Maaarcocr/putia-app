@@ -14,7 +14,7 @@ const WORDS = {
     publishedBy: (domain: string) => `Published by <strong>${domain}</strong>.`,
     unverified: "This app registered itself; its name is not verified.",
     access: (host: string) =>
-      `It will be able to see your wardrobe and its photos, propose outfits, comment, and add to your shortlist. Every change it makes is kept in your history and can be undone. Access goes to <strong>${host}</strong>.`,
+      `It will be able to see your wardrobe and its photos, propose outfits, comment, and suggest what's missing. Every change it makes is kept in your history and can be undone. Access goes to <strong>${host}</strong>.`,
     loopback: "<strong>This sends access to an app on your computer.</strong> Continue only if you just started connecting from it.",
     codeLabel: "Pairing code from Putia → Bench → Connect an AI",
     connect: "Connect",
@@ -30,7 +30,7 @@ const WORDS = {
     publishedBy: (domain: string) => `Pubblicata da <strong>${domain}</strong>.`,
     unverified: "Questa app si è registrata da sola: il suo nome non è verificato.",
     access: (host: string) =>
-      `Potrà vedere il tuo armadio e le sue foto, proporre abbinamenti, commentare e aggiungere possibili acquisti. Ogni sua modifica resta nella cronologia e si può annullare. L'accesso va a <strong>${host}</strong>.`,
+      `Potrà vedere il tuo armadio e le sue foto, proporre abbinamenti, commentare e suggerire cosa manca. Ogni sua modifica resta nella cronologia e si può annullare. L'accesso va a <strong>${host}</strong>.`,
     loopback: "<strong>L'accesso va a un'app sul tuo computer.</strong> Continua solo se hai appena iniziato il collegamento da lì.",
     codeLabel: "Codice da Putia → Banco → Collega un'IA",
     connect: "Collega",

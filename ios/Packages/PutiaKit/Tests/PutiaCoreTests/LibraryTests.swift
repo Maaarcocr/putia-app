@@ -134,19 +134,20 @@ private let outfit = doc("outfit", outfitId, by: "agent:Claude", data: """
     #expect(library.photos(of: accountId).map(\.value) == [Photo(ownerKind: .person, ownerId: accountId)])
 }
 
-@Test func shortlistHoldsWhatIsStillBeingConsidered() throws {
+@Test func whatsMissingIsTheSuggestionsNewestFirst() throws {
+    let older = "00000000-0000-4000-8000-00000000000a"
+    let newer = "00000000-0000-4000-8000-00000000000b"
     var library = Library()
-    let wish = { (id: String, status: String) in
-        doc("wish", id, data: """
-            {"name":"\(id)","status":"\(status)"}
-            """)
-    }
-    library.apply(try feed(3, [
-        wish("00000000-0000-4000-8000-00000000000a", "considering"),
-        wish("00000000-0000-4000-8000-00000000000b", "bought"),
+    library.apply(try feed(2, [
+        doc("wish", older, at: "2026-11-01T10:00:00.000Z", data: """
+            {"name":"Ecru knit polo","links":["https://shop.example/polo"]}
+            """),
+        doc("wish", newer, at: "2026-11-01T12:00:00.000Z", data: """
+            {"name":"Suede loafers","links":[]}
+            """),
     ]))
-    #expect(library.shortlist.map(\.value.status) == [.considering])
-    #expect(library.decidedWishes.map(\.value.status) == [.bought])
+    #expect(library.missing.map(\.id) == [newer, older])
+    #expect(library.wishes[older]?.value.links == ["https://shop.example/polo"])
 }
 
 @Test func decodesHistoryWithALabel() throws {

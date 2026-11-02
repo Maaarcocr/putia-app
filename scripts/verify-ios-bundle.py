@@ -11,7 +11,7 @@ import plistlib
 import sys
 
 REQUIRED_LOCALIZATIONS = ("en", "it")
-# What the app sends to the studio server (docs/product-spec.md §7). Never linked to an identity,
+# What the app sends to the studio server (docs/product-spec.md §6). Never linked to an identity,
 # never used for tracking, only for app functionality.
 DECLARED_DATA = {
     "NSPrivacyCollectedDataTypePhotosorVideos",

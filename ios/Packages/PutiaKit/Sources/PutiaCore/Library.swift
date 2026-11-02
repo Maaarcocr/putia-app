@@ -27,9 +27,7 @@ public struct Doc: Decodable, Equatable, Sendable {
         case outfit(Outfit)
         case photo(Photo)
         case comment(Comment)
-        case reference(Reference)
         case wish(Wish)
-        case review(Review)
 
         public var kind: Kind {
             switch self {
@@ -37,9 +35,7 @@ public struct Doc: Decodable, Equatable, Sendable {
             case .outfit: .outfit
             case .photo: .photo
             case .comment: .comment
-            case .reference: .reference
             case .wish: .wish
-            case .review: .review
             }
         }
     }
@@ -76,9 +72,7 @@ public struct Doc: Decodable, Equatable, Sendable {
         case .outfit: content = .outfit(try container.decode(Outfit.self, forKey: .data))
         case .photo: content = .photo(try container.decode(Photo.self, forKey: .data))
         case .comment: content = .comment(try container.decode(Comment.self, forKey: .data))
-        case .reference: content = .reference(try container.decode(Reference.self, forKey: .data))
         case .wish: content = .wish(try container.decode(Wish.self, forKey: .data))
-        case .review: content = .review(try container.decode(Review.self, forKey: .data))
         }
     }
 }
@@ -91,9 +85,7 @@ extension Doc.Content: Encodable {
         case .outfit(let value): try value.encode(to: encoder)
         case .photo(let value): try value.encode(to: encoder)
         case .comment(let value): try value.encode(to: encoder)
-        case .reference(let value): try value.encode(to: encoder)
         case .wish(let value): try value.encode(to: encoder)
-        case .review(let value): try value.encode(to: encoder)
         }
     }
 }
@@ -118,9 +110,7 @@ public struct Library: Codable, Equatable, Sendable {
     public var outfits: [String: Record<Outfit>] = [:]
     public var photos: [String: Record<Photo>] = [:]
     public var comments: [String: Record<Comment>] = [:]
-    public var references: [String: Record<Reference>] = [:]
     public var wishes: [String: Record<Wish>] = [:]
-    public var reviews: [String: Record<Review>] = [:]
 
     public init() {}
 
@@ -136,9 +126,7 @@ public struct Library: Codable, Equatable, Sendable {
         case .outfit(let value): Self.put(doc, value, into: &outfits)
         case .photo(let value): Self.put(doc, value, into: &photos)
         case .comment(let value): Self.put(doc, value, into: &comments)
-        case .reference(let value): Self.put(doc, value, into: &references)
         case .wish(let value): Self.put(doc, value, into: &wishes)
-        case .review(let value): Self.put(doc, value, into: &reviews)
         }
     }
 
@@ -158,9 +146,7 @@ public struct Library: Codable, Equatable, Sendable {
         case .outfit(let value): Self.show(value, id: id, at: at, in: &outfits)
         case .photo(let value): Self.show(value, id: id, at: at, in: &photos)
         case .comment(let value): Self.show(value, id: id, at: at, in: &comments)
-        case .reference(let value): Self.show(value, id: id, at: at, in: &references)
         case .wish(let value): Self.show(value, id: id, at: at, in: &wishes)
-        case .review(let value): Self.show(value, id: id, at: at, in: &reviews)
         }
     }
 
@@ -193,7 +179,7 @@ public struct Library: Codable, Equatable, Sendable {
         oldestFirst(comments.values.filter { $0.value.subjectId == subjectId })
     }
 
-    /// A piece's, outfit's or inspiration's photos, oldest first.
+    /// A piece's, outfit's or suggestion's photos, oldest first.
     public func photos(of ownerId: String) -> [Record<Photo>] {
         oldestFirst(photos.values.filter { $0.value.ownerId == ownerId })
     }
@@ -204,22 +190,9 @@ public struct Library: Codable, Equatable, Sendable {
         return ids.first { $0 == piece.value.mainPhotoId } ?? ids.first
     }
 
-    /// Shortlist entries still being considered.
-    public var shortlist: [Record<Wish>] {
-        newestFirst(wishes.values.filter { $0.value.status == .considering })
-    }
-
-    /// Entries the person bought or dismissed.
-    public var decidedWishes: [Record<Wish>] {
-        newestFirst(wishes.values.filter { $0.value.status != .considering })
-    }
-
-    public var inspiration: [Record<Reference>] {
-        newestFirst(Array(references.values))
-    }
-
-    public var latestReview: Record<Review>? {
-        newestFirst(Array(reviews.values)).first
+    /// What's missing: the suggestions, most recently changed first.
+    public var missing: [Record<Wish>] {
+        newestFirst(Array(wishes.values))
     }
 
     // Ties (same instant) fall back to the id, so the order never jumps between refreshes.
@@ -269,7 +242,6 @@ public struct Change: Decodable, Equatable, Sendable, Identifiable {
         let name: String?
         let title: String?
         let text: String?
-        let summary: String?
     }
 
     public init(from decoder: any Decoder) throws {
@@ -283,6 +255,6 @@ public struct Change: Decodable, Equatable, Sendable, Identifiable {
         undoes = try container.decodeIfPresent(Int.self, forKey: .undoes)
         at = try container.decode(String.self, forKey: .at)
         let data = try container.decode(State.self, forKey: .after).data
-        label = [data.title, data.name, data.text, data.summary].compactMap { $0 }.first { !$0.isEmpty }
+        label = [data.title, data.name, data.text].compactMap { $0 }.first { !$0.isEmpty }
     }
 }

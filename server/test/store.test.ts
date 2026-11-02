@@ -12,7 +12,7 @@ const piece = (overrides: Record<string, unknown> = {}) => ({ name: "Navy chore 
 
 const outfit = (pieceIds: string[], overrides: Record<string, unknown> = {}) => ({ title: "Soft workwear", pieceIds, ...overrides });
 
-async function create(kind: "piece" | "outfit" | "reference" | "wish" | "review" | "comment", data: unknown, actor = "human") {
+async function create(kind: "piece" | "outfit" | "wish" | "comment", data: unknown, actor = "human") {
   const id = newId();
   return (await store.write({ kind, id, actor, baseRevision: 0, data })).doc;
 }
@@ -61,9 +61,13 @@ describe("an AI", () => {
     const favourite = await store.write({ kind: "outfit", id: look.id, actor: AI, baseRevision: 1, data: outfit([jacket.id], { favourite: true }) });
     expect(favourite.doc.data.favourite).toBe(true);
 
-    const wish = await create("wish", { name: "Straight grey trousers", status: "considering" });
-    const bought = await store.write({ kind: "wish", id: wish.id, actor: AI, baseRevision: 1, data: { name: "Straight grey trousers", status: "bought" } });
-    expect(bought.doc.data.status).toBe("bought");
+    const wish = await create("wish", { name: "Straight grey trousers" });
+    expect(wish.data.links).toEqual([]);
+    const links = ["https://shop.example/trousers"];
+    const linked = await store.write({ kind: "wish", id: wish.id, actor: AI, baseRevision: 1, data: { name: "Straight grey trousers", links } });
+    expect(linked.doc.data.links).toEqual(links);
+    const photo = await store.write({ kind: "photo", id: newId(), actor: AI, baseRevision: 0, data: { ownerKind: "wish", ownerId: wish.id } });
+    expect(photo.doc.data.ownerKind).toBe("wish");
 
     expect((await store.remove("piece", jacket.id, AI, 2)).doc.deleted).toBe(true);
     const changes = await store.history();

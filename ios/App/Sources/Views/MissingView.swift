@@ -1,126 +1,68 @@
-import PhotosUI
 import PutiaCore
 import SwiftUI
 
-/// What's missing: the latest conclusion, the shortlist, and inspiration, all kept apart from
-/// the pieces the person owns. "Nothing needed" is a valid conclusion.
+/// What's missing: suggestions of things to get, from the person or an AI.
 struct MissingView: View {
     @Environment(AppModel.self) private var model
     @State private var path: [Route] = []
-    @State private var addingWish = false
-    @State private var pick: PhotosPickerItem?
+    @State private var adding = false
 
     var body: some View {
         NavigationStack(path: $path) {
-            List {
-                Section(L10n.latestConclusion) {
-                    if let review = model.library.latestReview {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label {
-                                Text(L10n.conclusion(review.value.conclusion))
-                            } icon: {
-                                Image(systemName: Self.symbol(review.value.conclusion))
-                                    .foregroundStyle(.tint)
-                            }
-                            .font(.headline)
-                            Text(review.value.summary)
-                            Byline(author: review.author)
-                        }
-                        .padding(.vertical, 4)
-                    } else {
-                        Text(L10n.noConclusion)
-                            .foregroundStyle(.secondary)
-                    }
+            let wishes = model.library.missing
+            List(wishes) { wish in
+                NavigationLink(value: Route.wish(wish.id)) { WishRow(wish: wish) }
+                    .accessibilityIdentifier("missing.wish")
+            }
+            .overlay {
+                if wishes.isEmpty {
+                    ContentUnavailableView(L10n.missingEmptyTitle, systemImage: "bag", description: Text(L10n.missingEmptyMessage))
                 }
-                Section {
-                    ForEach(model.library.shortlist) { wish in
-                        NavigationLink(value: Route.wish(wish.id)) { WishRow(wish: wish) }
-                            .accessibilityIdentifier("missing.wish")
-                    }
-                    Button(L10n.addWish, systemImage: "plus") { addingWish = true }
-                        .sheet(isPresented: $addingWish) {
+            }
+            .animation(.default, value: wishes.map(\.id))
+            .navigationTitle(L10n.tabMissing)
+            .toolbarTitleDisplayMode(.inlineLarge)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(L10n.addWish, systemImage: "plus") { adding = true }
+                        .accessibilityIdentifier("missing.add")
+                        .sheet(isPresented: $adding) {
                             WishEditor(wish: nil) { id in path.append(.wish(id)) }
                                 .environment(model)
                         }
-                } header: {
-                    Text(L10n.shortlist)
-                } footer: {
-                    Text(L10n.shortlistFooter)
-                }
-                Section(L10n.inspiration) {
-                    ForEach(model.library.inspiration) { reference in
-                        NavigationLink(value: Route.reference(reference.id)) {
-                            HStack(spacing: 12) {
-                                PhotoView(photoId: model.library.photos(of: reference.id).first?.id, fill: true)
-                                    .frame(width: 52, height: 52)
-                                    .background(.fill.tertiary)
-                                    .clipShape(.rect(cornerRadius: 10))
-                                Text(reference.value.title)
-                            }
-                        }
-                    }
-                    PhotosPicker(selection: $pick, matching: .images) {
-                        Label(L10n.addInspiration, systemImage: "photo.badge.plus")
-                    }
-                    if model.working {
-                        ProgressView(L10n.preparingPhoto)
-                    }
-                }
-                if !model.library.decidedWishes.isEmpty {
-                    Section(L10n.decided) {
-                        ForEach(model.library.decidedWishes) { wish in
-                            NavigationLink(value: Route.wish(wish.id)) { WishRow(wish: wish) }
-                        }
-                    }
-                }
-            }
-            .navigationTitle(L10n.tabMissing)
-            .toolbarTitleDisplayMode(.inlineLarge)
-            .onChange(of: pick) { _, item in
-                guard let item else { return }
-                pick = nil
-                Task {
-                    guard let data = try? await item.loadTransferable(type: Data.self),
-                          let id = await model.addInspiration(data)
-                    else { return }
-                    path.append(.reference(id))
                 }
             }
             .refreshable { await model.refresh() }
             .routes()
         }
     }
-
-    private static func symbol(_ conclusion: Review.Conclusion) -> String {
-        switch conclusion {
-        case .gaps: "puzzlepiece"
-        case .tryCombinations: "shuffle"
-        case .nothingNeeded: "checkmark.seal"
-        }
-    }
 }
 
+/// A suggestion in the list: its first photo, name and what it solves.
 private struct WishRow: View {
+    @Environment(AppModel.self) private var model
     let wish: Record<Wish>
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(wish.value.name)
-            if wish.value.status != .considering {
-                Text(L10n.status(wish.value.status))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else if let note = wish.value.note {
-                Text(note)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+        HStack(spacing: 12) {
+            PhotoView(photoId: model.library.photos(of: wish.id).first?.id, cornerRadius: 6)
+                .padding(4)
+                .frame(width: 52, height: 52)
+                .background(.fill.tertiary, in: .rect(cornerRadius: 10))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(wish.value.name)
+                if let note = wish.value.note {
+                    Text(note)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
             }
         }
     }
 }
 
-/// A shortlist entry: what it would solve, and where to find it.
+/// A suggestion: what it solves, its photos and links, and the conversation about it.
 struct WishView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -132,7 +74,7 @@ struct WishView: View {
         if let wish = model.library.wishes[id] {
             content(wish)
         } else {
-            ContentUnavailableView(L10n.gone, systemImage: "list.bullet")
+            ContentUnavailableView(L10n.gone, systemImage: "bag")
         }
     }
 
@@ -141,21 +83,22 @@ struct WishView: View {
             Section {
                 Text(wish.value.name)
                     .font(.title3.bold())
-                Picker(L10n.statusLabel, selection: Binding(get: { wish.value.status }, set: { value in update { $0.status = value } })) {
-                    ForEach(Wish.Status.allCases, id: \.self) { status in
-                        Text(L10n.status(status)).tag(status)
-                    }
+                if let note = wish.value.note {
+                    Text(note)
                 }
             } footer: {
                 Byline(author: wish.author)
             }
-            if let note = wish.value.note {
-                Section(L10n.problem) { Text(note) }
-            }
-            if let link = wish.value.link, let url = URL(string: link) {
-                Section {
-                    Link(destination: url) {
-                        Label(L10n.openLink, systemImage: "safari")
+            PhotosSection(owner: .wish, ownerId: id)
+            if !wish.value.links.isEmpty {
+                Section(L10n.links) {
+                    ForEach(wish.value.links, id: \.self) { link in
+                        if let url = URL(string: link) {
+                            Link(destination: url) {
+                                Label(url.host() ?? link, systemImage: "safari")
+                            }
+                            .accessibilityIdentifier("wish.link")
+                        }
                     }
                 }
             }
@@ -187,17 +130,9 @@ struct WishView: View {
             }
         }
     }
-
-    private func update(_ change: (inout Wish) -> Void) {
-        guard let wish = model.library.wishes[id] else { return }
-        var value = wish.value
-        change(&value)
-        guard value != wish.value else { return }
-        Task { await model.save(.wish(value), id: id, revision: wish.revision) }
-    }
 }
 
-/// Adds a shortlist entry, or edits its name and why.
+/// Adds a suggestion, or edits its name, what it solves and its links (one per line).
 private struct WishEditor: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -205,14 +140,24 @@ private struct WishEditor: View {
     let saved: (String) -> Void
     @State private var name = ""
     @State private var note = ""
+    @State private var links = ""
 
     var body: some View {
         NavigationStack {
             Form {
-                TextField(L10n.wishName, text: $name)
-                    .accessibilityIdentifier("wish.name")
-                TextField(L10n.problemHint, text: $note, axis: .vertical)
-                    .lineLimit(3...6)
+                Section {
+                    TextField(L10n.wishName, text: $name)
+                        .accessibilityIdentifier("wish.name")
+                    TextField(L10n.problemHint, text: $note, axis: .vertical)
+                        .lineLimit(3...6)
+                }
+                Section(L10n.links) {
+                    TextField(L10n.linksHint, text: $links, axis: .vertical)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .accessibilityIdentifier("wish.links")
+                }
             }
             .navigationTitle(wish == nil ? L10n.addWish : L10n.edit)
             .navigationBarTitleDisplayMode(.inline)
@@ -230,6 +175,7 @@ private struct WishEditor: View {
                 guard let wish else { return }
                 name = wish.value.name
                 note = wish.value.note ?? ""
+                links = wish.value.links.joined(separator: "\n")
             }
         }
     }
@@ -238,6 +184,7 @@ private struct WishEditor: View {
         var value = wish?.value ?? Wish(name: "")
         value.name = name.trimmed
         value.note = note.trimmed.isEmpty ? nil : note.trimmed
+        value.links = links.split(whereSeparator: \.isNewline).map { String($0).trimmed }.filter { !$0.isEmpty }
         Task {
             let id: String?
             if let wish {
@@ -249,80 +196,5 @@ private struct WishEditor: View {
             dismiss()
             saved(id)
         }
-    }
-}
-
-/// An inspiration image: what the person likes about it, and the conversation about it.
-struct ReferenceView: View {
-    @Environment(AppModel.self) private var model
-    @Environment(\.dismiss) private var dismiss
-    let id: String
-    @State private var title = ""
-    @State private var note = ""
-    @State private var confirmingDelete = false
-
-    var body: some View {
-        if let reference = model.library.references[id] {
-            content(reference)
-        } else {
-            ContentUnavailableView(L10n.gone, systemImage: "photo")
-        }
-    }
-
-    private func content(_ reference: Record<Reference>) -> some View {
-        List {
-            Section {
-                VStack(spacing: 14) {
-                    if let photo = model.library.photos(of: id).first {
-                        PhotoView(photoId: photo.id, size: .full, cornerRadius: 18)
-                            .frame(height: 380)
-                    }
-                    TextField(L10n.referenceTitle, text: $title)
-                        .font(.title2.bold())
-                        .multilineTextAlignment(.center)
-                        .submitLabel(.done)
-                        .onSubmit {
-                            guard !title.trimmed.isEmpty else { return }
-                            update { $0.title = title.trimmed }
-                        }
-                }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-            }
-            Section {
-                TextField(L10n.referenceNoteHint, text: $note)
-                    .submitLabel(.done)
-                    .onSubmit { update { $0.note = note.trimmed.isEmpty ? nil : note.trimmed } }
-            }
-            PhotosSection(owner: .reference, ownerId: id)
-            CommentsSection(subjectKind: .reference, subjectId: id)
-            Section {
-                Button(L10n.delete, role: .destructive) { confirmingDelete = true }
-                    .alert(L10n.deleteInspirationTitle, isPresented: $confirmingDelete) {
-                        Button(L10n.delete, role: .destructive) {
-                            Task {
-                                if await model.delete(.reference, id: id, revision: reference.revision) { dismiss() }
-                            }
-                        }
-                        Button(L10n.cancel, role: .cancel) {}
-                    } message: {
-                        Text(L10n.deleteUndoable)
-                    }
-            }
-        }
-        .navigationTitle(reference.value.title)
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            title = reference.value.title
-            note = reference.value.note ?? ""
-        }
-    }
-
-    private func update(_ change: (inout Reference) -> Void) {
-        guard let reference = model.library.references[id] else { return }
-        var value = reference.value
-        change(&value)
-        guard value != reference.value else { return }
-        Task { await model.save(.reference(value), id: id, revision: reference.revision) }
     }
 }
