@@ -221,7 +221,7 @@ private struct WishEditor: View {
         Task {
             let id: String?
             if let wish {
-                id = await model.save(.wish(value), id: wish.id, revision: wish.revision)?.id
+                id = await model.save(.wish(value), id: wish.id, revision: wish.revision) ? wish.id : nil
             } else {
                 id = await model.create(.wish(value))
             }

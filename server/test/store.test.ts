@@ -28,6 +28,7 @@ describe("revisions and conflicts", () => {
     const renamed = await store.write({ kind: "piece", id: jacket.id, actor: "human", baseRevision: 1, data: piece({ name: "Chore jacket" }) });
     expect(renamed.doc.revision).toBe(2);
     expect(renamed.doc.data.name).toBe("Chore jacket");
+    expect(renamed.doc).toEqual(await store.get("piece", jacket.id));
   });
 
   it("refuses a write based on a stale revision and returns the current record", async () => {

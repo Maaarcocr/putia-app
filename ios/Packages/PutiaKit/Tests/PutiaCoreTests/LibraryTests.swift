@@ -82,6 +82,19 @@ private let outfit = doc("outfit", outfitId, by: "agent:Claude", data: """
     #expect(library.cursor == 5)
 }
 
+@Test func showsAChangeBeforeTheServerHasIt() throws {
+    var library = Library()
+    library.apply(try feed(3, [jacket]))
+    library.show(.piece(Piece(name: "Chore jacket")), id: jacketId)
+    #expect(library.pieces[jacketId]?.value.name == "Chore jacket")
+    #expect(library.pieces[jacketId]?.revision == 1, "it keeps the revision the change is based on")
+
+    let newId = "00000000-0000-4000-8000-0000000000d1"
+    library.show(.piece(Piece(name: "Linen shirt")), id: newId)
+    #expect(library.pieces[newId]?.author == .you)
+    #expect(library.closet.first?.id == newId, "a new piece shows first")
+}
+
 @Test func encodesOnlyWhatTheServerAccepts() throws {
     var piece = Piece(name: "Shirt")
     piece[.material] = Attribute("linen", state: .confirmed, by: "human")

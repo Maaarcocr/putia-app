@@ -16,9 +16,12 @@ nonisolated enum Problem: Equatable, Sendable {
 
 /// The bench as the app sees it. Records live on the server; the app shows the copy it last
 /// loaded (also kept on disk) and sends every change to the server, which checks it against the
-/// revision the app saw. There is no offline queue: a change either saves or says why not.
+/// revision the app saw. A change shows at once, while it's on its way. There is no offline queue:
+/// a change either saves, or goes away and says why not.
 @Observable
 final class AppModel {
+    /// What the screens show: the records as the server last sent them, with the person's changes
+    /// that are still on their way on top.
     private(set) var library: Library
     /// The shared history, newest first, as last loaded.
     private(set) var history: [Change] = []
@@ -33,6 +36,19 @@ final class AppModel {
     private let accounts: any AccountStore
     private let cacheDirectory: URL?
     @ObservationIgnored private var thumbnails: [String: UIImage] = [:]
+    /// The records as the server last sent them.
+    @ObservationIgnored private var saved: Library
+    /// Each record's newest change that the server hasn't confirmed yet.
+    @ObservationIgnored private var unsaved: [String: Unsaved] = [:]
+    /// The records whose changes are being sent.
+    @ObservationIgnored private var sending: [String: Task<Bool, Never>] = [:]
+
+    private struct Unsaved: Equatable {
+        var content: Doc.Content
+        /// The revision it's based on.
+        var base: Int
+        var note: String?
+    }
 
     /// - Parameter cacheDirectory: where to keep the last loaded records and photos; nil keeps nothing.
     init(server: any Server, accounts: any AccountStore, cacheDirectory: URL?) {
@@ -45,9 +61,10 @@ final class AppModel {
             return new
         }()
         self.account = account
-        library = cacheDirectory
+        saved = cacheDirectory
             .flatMap { try? Data(contentsOf: $0.appending(path: "library.json")) }
             .flatMap { try? JSONDecoder().decode(Library.self, from: $0) } ?? Library()
+        library = saved
         if let cacheDirectory {
             try? FileManager.default.createDirectory(at: cacheDirectory.appending(path: "photos"), withIntermediateDirectories: true)
         }
@@ -61,39 +78,77 @@ final class AppModel {
 
     /// Loads what changed on the bench since the last refresh, whoever changed it.
     func refresh() async {
-        guard let feed = try? await server.changes(since: library.cursor, account: account),
-              feed.cursor != library.cursor || !feed.docs.isEmpty
+        guard let feed = try? await server.changes(since: saved.cursor, account: account),
+              feed.cursor != saved.cursor || !feed.docs.isEmpty
         else { return }
-        library.apply(feed)
+        saved.apply(feed)
+        show()
         saveCache()
     }
 
-    /// Saves a record on top of `revision` (0 creates it). Returns the saved version, or nil
-    /// when it wasn't saved; `problem` then says why.
+    /// Saves a record on top of `revision` (0 creates it). The change shows at once. Changes to one
+    /// record are sent one after another: one made while the previous is on its way goes on top of
+    /// it. Returns whether it was saved; if not, the record goes back to the server's version and
+    /// `problem` says why.
     @discardableResult
-    func save(_ content: Doc.Content, id: String, revision: Int, note: String? = nil) async -> Doc? {
-        do {
-            let doc = try await server.save(content, id: id, baseRevision: revision, note: note, account: account)
-            library.apply(doc)
-            saveCache()
-            return doc
-        } catch {
-            report(error)
-            return nil
+    func save(_ content: Doc.Content, id: String, revision: Int, note: String? = nil) async -> Bool {
+        unsaved[id] = Unsaved(content: content, base: revision, note: note)
+        show()
+        if let running = sending[id] { return await running.value }
+        let task = Task { await send(id) }
+        sending[id] = task
+        return await task.value
+    }
+
+    /// Sends the record's newest change until the server has it.
+    private func send(_ id: String) async -> Bool {
+        defer { sending[id] = nil }
+        while let change = unsaved[id] {
+            do {
+                let doc = try await server.save(change.content, id: id, baseRevision: change.base, note: change.note, account: account)
+                saved.apply(doc)
+                if unsaved[id] == change {
+                    unsaved[id] = nil
+                } else {
+                    unsaved[id]?.base = doc.revision
+                }
+                show()
+                saveCache()
+            } catch {
+                // The record goes back to the server's version, without newer changes: they were
+                // made on top of this one.
+                unsaved[id] = nil
+                report(error)
+                show()
+                return false
+            }
         }
+        return true
+    }
+
+    /// The records as the server last sent them, with the changes on their way on top.
+    private func show() {
+        var shown = saved
+        for (id, change) in unsaved {
+            shown.show(change.content, id: id)
+        }
+        library = shown
     }
 
     /// Creates a record. Returns its id.
     @discardableResult
     func create(_ content: Doc.Content) async -> String? {
-        await save(content, id: Self.newId(), revision: 0)?.id
+        let id = Self.newId()
+        return await save(content, id: id, revision: 0) ? id : nil
     }
 
     /// Deletes a record. It stays in the history and can be undone.
     @discardableResult
     func delete(_ kind: Kind, id: String, revision: Int) async -> Bool {
         do {
-            library.apply(try await server.delete(kind, id: id, baseRevision: revision, account: account))
+            saved.apply(try await server.delete(kind, id: id, baseRevision: revision, account: account))
+            unsaved[id] = nil
+            show()
             saveCache()
             return true
         } catch {
@@ -110,7 +165,8 @@ final class AppModel {
 
     func undo(_ change: Change) async {
         do {
-            library.apply(try await server.undo(change.seq, account: account))
+            saved.apply(try await server.undo(change.seq, account: account))
+            show()
             saveCache()
         } catch {
             report(error)
@@ -126,7 +182,10 @@ final class AppModel {
         switch error {
         case .conflict(let current):
             // Show the latest version, so the person can redo their change on top of it.
-            if let current { library.apply(current) }
+            if let current {
+                saved.apply(current)
+                show()
+            }
             problem = .conflict
         case .refused(let message):
             problem = .refused(message)
@@ -136,7 +195,7 @@ final class AppModel {
     }
 
     private func saveCache() {
-        guard let cacheDirectory, let data = try? JSONEncoder().encode(library) else { return }
+        guard let cacheDirectory, let data = try? JSONEncoder().encode(saved) else { return }
         try? data.write(to: cacheDirectory.appending(path: "library.json"), options: .atomic)
     }
 
@@ -178,7 +237,7 @@ final class AppModel {
         }
         keep(prepared.thumb, photoId, .thumb)
         keep(prepared.full, photoId, .full)
-        return await save(.photo(Photo(ownerKind: owner, ownerId: ownerId)), id: photoId, revision: 0) != nil
+        return await save(.photo(Photo(ownerKind: owner, ownerId: ownerId)), id: photoId, revision: 0)
     }
 
     /// Makes a photo the piece's main one.
@@ -255,6 +314,8 @@ final class AppModel {
         accounts.delete()
         account = Account.make()
         accounts.save(account)
+        saved = Library()
+        unsaved = [:]
         library = Library()
         history = []
         agents = []

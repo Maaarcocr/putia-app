@@ -19,6 +19,8 @@ The server stores each record as JSON in one generic table, `docs`, with a **rev
 2. is validated (shape, and that the records it points at exist);
 3. is recorded in `changes` with the state before and after, the author (`human`, or `agent:<name>` for an AI) and an optional note, in the same D1 batch.
 
+D1 sits in one place and every query is a round trip to it, so a write keeps them few: the account check, reading the current record, one query for the records it points at (if any) and the batch.
+
 The person and an AI can change the same things: the server doesn't check who wrote what.
 
 `changes` is at once the history, the source for undo (put back the `before` state, if the record hasn't changed since) and the app's sync feed (`GET changes?since=N` returns every record touched after change N).
@@ -50,7 +52,7 @@ Swift 6, SwiftUI with Observation, iOS 26+, iPhone only. XcodeGen generates the 
 - **`PutiaImaging`** (Apple platforms): the cut-out (Vision's foreground mask) and thumbnails, on the phone.
 - **The app target**: `AppModel` (the one observable model), the server client (`HTTPServer`, and `MemoryServer` for tests and UI tests), the Keychain account, and the screens. App code defaults to the main actor.
 
-**Online first.** The app shows the `Library` it last loaded (cached as JSON on disk, photos too) and refreshes every 15 seconds while open, when it becomes active and on pull to refresh. Every change goes straight to the server; if it can't be saved, an alert says why: no connection, or someone (the AI) changed the record first, in which case the app shows the latest version so the person can redo their change. There is no offline queue.
+**Online first.** The app shows the `Library` it last loaded (cached as JSON on disk, photos too) and refreshes every 15 seconds while open, when it becomes active and on pull to refresh. Every change shows at once and goes straight to the server. Changes to one record are sent one after another, each based on the revision the one before produced, so quick taps (confirming two tags) don't trip over each other. If a change can't be saved, the record goes back to the server's version and an alert says why: no connection, or someone (the AI) changed the record first, in which case the app shows the latest version so the person can redo their change. There is no offline queue.
 
 **The account** is a random id and secret made on the phone and kept in the Keychain (synced by iCloud Keychain). No sign-up. "Delete everything" deletes it on the server with all records and photos, and starts a new one.
 

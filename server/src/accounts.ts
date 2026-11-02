@@ -15,12 +15,14 @@ export async function sha256(text: string): Promise<string> {
 /** True when `secret` owns the account (claiming it if it's new). */
 export async function claim(db: D1Database, accountId: string, secret: string): Promise<boolean> {
   const hash = await sha256(secret);
+  const owner = () => db.prepare("SELECT secret_hash FROM accounts WHERE id = ?").bind(accountId).first<{ secret_hash: string }>();
+  const row = await owner();
+  if (row) return row.secret_hash === hash;
   await db
     .prepare("INSERT OR IGNORE INTO accounts (id, secret_hash, agents_key, created_at) VALUES (?, ?, ?, ?)")
     .bind(accountId, hash, crypto.randomUUID(), new Date().toISOString())
     .run();
-  const row = await db.prepare("SELECT secret_hash FROM accounts WHERE id = ?").bind(accountId).first<{ secret_hash: string }>();
-  return row?.secret_hash === hash;
+  return (await owner())?.secret_hash === hash;
 }
 
 /**

@@ -149,6 +149,28 @@ public struct Library: Codable, Equatable, Sendable {
             : Record(id: doc.id, revision: doc.revision, createdBy: doc.createdBy, updatedAt: doc.updatedAt, value: value)
     }
 
+    /// Shows a change the person made that the server hasn't confirmed yet: over the record, which
+    /// keeps its revision, or as a new record of theirs.
+    public mutating func show(_ content: Doc.Content, id: String, at date: Date = .now) {
+        let at = date.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true))
+        switch content {
+        case .piece(let value): Self.show(value, id: id, at: at, in: &pieces)
+        case .outfit(let value): Self.show(value, id: id, at: at, in: &outfits)
+        case .photo(let value): Self.show(value, id: id, at: at, in: &photos)
+        case .comment(let value): Self.show(value, id: id, at: at, in: &comments)
+        case .reference(let value): Self.show(value, id: id, at: at, in: &references)
+        case .wish(let value): Self.show(value, id: id, at: at, in: &wishes)
+        case .review(let value): Self.show(value, id: id, at: at, in: &reviews)
+        }
+    }
+
+    private static func show<Value>(_ value: Value, id: String, at: String, in records: inout [String: Record<Value>]) {
+        var record = records[id] ?? Record(id: id, revision: 0, createdBy: Author.you.raw, updatedAt: at, value: value)
+        record.value = value
+        record.updatedAt = at
+        records[id] = record
+    }
+
     // MARK: What the screens show
 
     /// The pieces, most recently changed first.

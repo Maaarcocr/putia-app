@@ -147,11 +147,11 @@ export class Store {
 
     const checked = validate(input.kind, input.data);
     if (!checked.ok) throw new Invalid(checked.problems);
-    await this.checkReferences(input.kind, input.id, checked.data);
+    await this.checkReferences(input.kind, checked.data);
 
     const before: State | null = current ? { deleted: false, data: current.data } : null;
     const after: State = { deleted: false, data: checked.data };
-    const seq = await this.commit({
+    return this.commit({
       kind: input.kind,
       id: input.id,
       actor: input.actor,
@@ -164,7 +164,6 @@ export class Store {
       createdBy: current?.createdBy ?? input.actor,
       createdAt: current?.createdAt,
     });
-    return { doc: (await this.get(input.kind, input.id))!, seq };
   }
 
   /** Deletes keep the record and its history; Undo brings it back. */
@@ -172,7 +171,7 @@ export class Store {
     const current = await this.get(kind, id);
     if (!current || current.deleted) throw new NotFound(`No ${kind} with id ${id}.`);
     if (baseRevision !== current.revision) throw new Conflict(current);
-    const seq = await this.commit({
+    return this.commit({
       kind,
       id,
       actor,
@@ -185,7 +184,6 @@ export class Store {
       createdBy: current.createdBy,
       createdAt: current.createdAt,
     });
-    return { doc: (await this.get(kind, id))!, seq };
   }
 
   /** Reverts one change, if the record hasn't changed since. */
@@ -198,7 +196,7 @@ export class Store {
     }
     // Undoing a create hides the record; undoing anything else restores the earlier state.
     const target: State = change.before ?? { deleted: true, data: change.after.data };
-    const newSeq = await this.commit({
+    return this.commit({
       kind: change.kind,
       id: change.id,
       actor,
@@ -211,7 +209,6 @@ export class Store {
       createdBy: current.createdBy,
       createdAt: current.createdAt,
     });
-    return { doc: (await this.get(change.kind, change.id))!, seq: newSeq };
   }
 
   async change(seq: number): Promise<Change | null> {
@@ -267,16 +264,18 @@ export class Store {
     );
   }
 
-  private async checkReferences(kind: Kind, id: string, data: Data): Promise<void> {
-    const missing: string[] = [];
-    for (const [target, targetId] of referencedIds(kind, data)) {
-      if (target === kind && targetId === id) {
-        missing.push(`${kind} ${id} can't refer to itself`);
-        continue;
-      }
-      const found = await this.get(target, targetId);
-      if (!found || found.deleted) missing.push(`${target} ${targetId} doesn't exist`);
-    }
+  /** The records this one points at must exist: all looked up in one query. */
+  private async checkReferences(kind: Kind, data: Data): Promise<void> {
+    const references = referencedIds(kind, data);
+    if (references.length === 0) return;
+    const { results } = await this.db
+      .prepare(`SELECT kind, id FROM docs WHERE account_id = ? AND deleted = 0 AND (kind, id) IN (VALUES ${references.map(() => "(?, ?)").join(", ")})`)
+      .bind(this.accountId, ...references.flat())
+      .all<{ kind: string; id: string }>();
+    const found = new Set(results.map((row) => `${row.kind} ${row.id}`));
+    const missing = references
+      .filter(([target, targetId]) => !found.has(`${target} ${targetId}`))
+      .map(([target, targetId]) => `${target} ${targetId} doesn't exist`);
     if (missing.length > 0) throw new Invalid(missing);
   }
 
@@ -292,7 +291,7 @@ export class Store {
     undoes: number | null;
     createdBy: Actor;
     createdAt?: string;
-  }): Promise<number> {
+  }): Promise<{ doc: Doc; seq: number }> {
     const at = this.now().toISOString();
     const { kind, id, base } = args;
     // Both statements are guarded by the revision the writer saw, so a write that raced another one
@@ -324,7 +323,9 @@ export class Store {
         ),
     ]);
     if (results[0].meta.changes !== 1) throw new Conflict(await this.get(kind, id));
-    return results[0].meta.last_row_id;
+    // The record as just written, without reading it back.
+    const doc: Doc = { kind, id, revision: base + 1, ...args.after, createdBy: args.createdBy, createdAt: args.createdAt ?? at, updatedAt: at };
+    return { doc, seq: results[0].meta.last_row_id };
   }
 }
 

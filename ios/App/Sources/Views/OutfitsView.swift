@@ -139,7 +139,7 @@ struct OutfitEditor: View {
         Task {
             let id: String?
             if let outfit {
-                id = await model.save(.outfit(value), id: outfit.id, revision: outfit.revision)?.id
+                id = await model.save(.outfit(value), id: outfit.id, revision: outfit.revision) ? outfit.id : nil
             } else {
                 id = await model.create(.outfit(value))
             }

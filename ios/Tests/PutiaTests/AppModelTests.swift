@@ -27,10 +27,42 @@ private func makeModel(_ server: MemoryServer = MemoryServer()) -> AppModel {
     try server.write(.piece(Piece(name: "Chore jacket")), id: id, baseRevision: 1, actor: "agent:Claude")
 
     let saved = await model.save(.piece(Piece(name: "My jacket")), id: id, revision: 1)
-    #expect(saved == nil)
+    #expect(!saved)
     #expect(model.problem == .conflict)
     #expect(model.library.pieces[id]?.value.name == "Chore jacket")
     #expect(model.library.pieces[id]?.author == .you, "the creator stays the person")
+}
+
+@Test func quickChangesToOneRecordGoOnTopOfEachOther() async throws {
+    let server = MemoryServer()
+    let model = makeModel(server)
+    var piece = Piece(name: "Jacket")
+    piece[.material] = Attribute("wool", state: .suggested, by: "agent:Claude")
+    piece[.cut] = Attribute("boxy", state: .suggested, by: "agent:Claude")
+    let id = try #require(await model.create(.piece(piece)))
+
+    // Two confirms tapped before the first is saved: both read revision 1.
+    piece[.material]?.state = .confirmed
+    let first = Task { await model.save(.piece(piece), id: id, revision: 1) }
+    piece[.cut]?.state = .confirmed
+    let second = Task { await model.save(.piece(piece), id: id, revision: 1) }
+    #expect(await first.value)
+    #expect(await second.value)
+    #expect(model.problem == nil)
+
+    let other = makeModel(server)
+    await other.refresh()
+    #expect(other.library.pieces[id]?.value.needsReview == false, "both confirms reached the server")
+}
+
+@Test func aChangeThatIsNotSavedGoesBack() async throws {
+    let server = MemoryServer()
+    let model = makeModel(server)
+    let id = try #require(await model.create(.piece(Piece(name: "Jacket"))))
+    server.failing = true
+    #expect(await model.save(.piece(Piece(name: "Renamed")), id: id, revision: 1) == false)
+    #expect(model.problem == .offline)
+    #expect(model.library.pieces[id]?.value.name == "Jacket")
 }
 
 @Test func undoesAChange() async throws {

@@ -22,7 +22,7 @@ The owner's most important rule: plain, standard, boring code, with the fewest m
 - Use stock SwiftUI controls and semantic styles; there is no design system.
 - "Are you sure?" confirmations use `.alert` with a destructive button and Cancel, attached to the button that opens it. Not `confirmationDialog`: on iOS 26 it is a popover.
 - One presentation per view: attach each sheet or alert to the control that opens it, never two on the same view.
-- No offline write queue, sync engine or local database: the server holds the records, the app shows what it last loaded.
+- No offline write queue, sync engine or local database: the server holds the records, the app shows what it last loaded, with the person's changes on top while they're on their way.
 - One generic save path for every kind of record, on the server and in the app.
 
 ## Non-negotiable rules
