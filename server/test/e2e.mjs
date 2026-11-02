@@ -132,13 +132,13 @@ assert.deepEqual(tagged.saved.attrs, attrs, "the AI's tags are saved as sent");
 const repoFile = (path) => `https://raw.githubusercontent.com/Maaarcocr/putia-app/main/${path}`;
 const productPage = "https://github.com/Maaarcocr/putia-app";
 const found = await json("add_photo", {
-  piece_id: jacketId, image_url: repoFile("ios/App/Assets.xcassets/AppIcon.appiconset/AppIcon.png"),
+  owner_kind: "piece", owner_id: jacketId, image_url: repoFile("ios/App/Assets.xcassets/AppIcon.appiconset/AppIcon.png"),
   note: `Found on ${productPage}: same product code as on the label`,
 });
 assert.equal(found.saved.by, "agent:Test Agent", JSON.stringify(found));
 assert.equal((await call("get_photo", { photo_id: found.saved.id })).mimeType, "image/png");
 assert.deepEqual((await json("get", { kind: "piece", id: jacketId })).photos.map((photo) => photo.id).sort(), [photoId, found.saved.id].sort());
-assert.match((await call("add_photo", { piece_id: jacketId, image_url: repoFile("README.md"), note: productPage })).text,
+assert.match((await call("add_photo", { owner_kind: "piece", owner_id: jacketId, image_url: repoFile("README.md"), note: productPage })).text,
   /must be a JPEG, PNG or WebP/, "only images are saved");
 
 const proposal = await json("save_outfit", {
@@ -149,6 +149,12 @@ const proposal = await json("save_outfit", {
   },
 });
 const outfitId = proposal.saved.id;
+// The AI adds a collage it made, as a data: URL (the 1x1 PNG stands in for it).
+const collage = await json("add_photo", {
+  owner_kind: "outfit", owner_id: outfitId, image_url: `data:image/png;base64,${png.toString("base64")}`, note: "A collage I made of the pieces",
+});
+assert.equal(collage.saved.ownerKind, "outfit", JSON.stringify(collage));
+assert.deepEqual(new Uint8Array(await (await app(`/photos/${collage.saved.id}/full`)).arrayBuffer()), new Uint8Array(png));
 
 // 4. The person tries it and comments; the AI sees that and records a review.
 const feed = await (await app("/changes?since=0")).json();

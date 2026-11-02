@@ -15,7 +15,7 @@ const INSTRUCTIONS = `Putia is the user's wardrobe studio. You and the user work
 - Look at the photos ("get_photo") before judging a piece or outfit. A photo can't establish material, true colour, size or comfort: save the tags you set with state "suggested" and "by" set to your name, so the user can confirm them.
 - Get to know each piece. When a label, tag, barcode or product code is visible, or a comment names the brand and model, search the web for that exact product if you can. Add its clearest photo with "add_photo" (the piece alone on a plain or transparent background: no model, no other items), suggest tags from the listing, and comment on the piece with what you found and the link. Only when you're sure it's the same product: a listing shows the product as sold, not this piece's true colour, wear or alterations.
 - When you can't tell exactly what a piece is, ask the user for a photo of its label, care tag or barcode, or the brand and product name or code: in your conversation, or as a comment on the piece (they can add the photo to the piece, or answer with a comment). Ask about the pieces that matter most first, a few at a time.
-- Propose outfits only from owned pieces, as "proposed", with a note on the intended effect, silhouette and texture, and what a collage can't show. The user's comments and photos tell you what works.
+- Propose outfits only from owned pieces, as "proposed", with a note on the intended effect, silhouette and texture, and what a collage can't show. List the pieces from head to feet, each outer layer before what goes under it: the app lays their main photos out in that order, each over the next. If you can make images, also make a collage of the pieces' photos that shows how they layer (the jacket over the shirt) and add it to the outfit with "add_photo". The user's comments and photos tell you what works.
 - Before suggesting a purchase, look for combinations of what they own. "Nothing needed" and "try a different combination" are valid conclusions: record them with "save_review". A shortlist entry's note names the problem it solves and the pieces it goes with.
 - Judge whole combinations, name the smallest sufficient change, separate observation from preference. No scores, flattery or universal rules.
 - If a save reports a conflict, the user changed the record meanwhile: read it again and redo your change on top.`;
@@ -23,14 +23,23 @@ const INSTRUCTIONS = `Putia is the user's wardrobe studio. You and the user work
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_IMAGE_BYTES = 8_000_000;
 
-/** Downloads an image an AI found online. The Worker can reach only public addresses. */
-async function download(url: string): Promise<{ bytes: ArrayBuffer; type: string }> {
-  if (!url.startsWith("https://")) throw new Invalid(["image_url must be an https address."]);
-  const response = await fetch(url, { headers: { "User-Agent": "Putia/1.0 (+https://api.putia.app)" } }).catch(() => null);
-  if (!response?.ok) throw new Invalid([`Couldn't download ${url} (${response?.status ?? "no answer"}). Try another image.`]);
-  const type = (response.headers.get("Content-Type") ?? "").split(";")[0].trim().toLowerCase();
-  if (!IMAGE_TYPES.includes(type)) throw new Invalid([`That address is ${type || "not an image"}: it must be a JPEG, PNG or WebP image.`]);
-  const bytes = await response.arrayBuffer();
+/** An image an AI passes: a data: URL with an image it made, or an https address the Worker downloads. */
+async function readImage(url: string): Promise<{ bytes: ArrayBuffer; type: string }> {
+  let type: string;
+  let bytes: ArrayBuffer;
+  const data = /^data:([^;,]+);base64,(.+)$/s.exec(url);
+  if (data) {
+    type = data[1].toLowerCase();
+    bytes = Uint8Array.from(atob(data[2]), (char) => char.charCodeAt(0)).buffer;
+  } else if (url.startsWith("https://")) {
+    const response = await fetch(url, { headers: { "User-Agent": "Putia/1.0 (+https://api.putia.app)" } }).catch(() => null);
+    if (!response?.ok) throw new Invalid([`Couldn't download ${url} (${response?.status ?? "no answer"}). Try another image.`]);
+    type = (response.headers.get("Content-Type") ?? "").split(";")[0].trim().toLowerCase();
+    bytes = await response.arrayBuffer();
+  } else {
+    throw new Invalid(["image_url must be an https address or a data: URL."]);
+  }
+  if (!IMAGE_TYPES.includes(type)) throw new Invalid([`That is ${type || "not an image"}: it must be a JPEG, PNG or WebP image.`]);
   if (bytes.byteLength > MAX_IMAGE_BYTES) throw new Invalid(["The image is larger than 8 MB. Choose a smaller one."]);
   return { bytes, type };
 }
@@ -161,24 +170,23 @@ export async function handleMcp(request: Request, env: Env, props: Props): Promi
     "add_photo",
     {
       description:
-        "Add a photo to a piece: one of its exact product that you found online, from a shop or the brand. Pass the image file's https address. Choose one with the piece alone on a plain or transparent background: no model, no other items. JPEG, PNG or WebP, up to 8 MB.",
+        "Add a photo to a piece, outfit or inspiration image. For a piece: its exact product, found online from a shop or the brand, alone on a plain or transparent background (no model, no other items). For an outfit: a collage you made of its pieces showing how they layer, or a photo of the same look you found online. Pass an https address, or the image itself as a data: URL. JPEG, PNG or WebP, up to 8 MB.",
       inputSchema: z.object({
-        piece_id: z.string(),
-        image_url: z.string().url().describe("The image file itself (https)"),
-        note: z.string().min(1).max(300).describe("The page you found it on, and how you know it's the same product; shown in the user's history"),
+        owner_kind: z.enum(["piece", "outfit", "reference"]),
+        owner_id: z.string(),
+        image_url: z.string().describe("The image file's https address, or a data: URL (data:image/png;base64,…)"),
+        note: z.string().min(1).max(300).describe("Where it comes from: the page you found it on, or that you made it; shown in the user's history"),
       }),
     },
-    async ({ piece_id, image_url, note }) =>
+    async ({ owner_kind, owner_id, image_url, note }) =>
       attempt(async () => {
-        const piece = await store.get("piece", piece_id);
-        if (!piece || piece.deleted) throw new NotFound(`No piece with id ${piece_id}.`);
-        const image = await download(image_url);
+        const image = await readImage(image_url);
         const photoId = crypto.randomUUID();
         // The same image serves as the thumbnail.
         const keys = [photoKey(props.accountId, photoId, "full"), photoKey(props.accountId, photoId, "thumb")];
         for (const key of keys) await env.PHOTOS.put(key, image.bytes, { httpMetadata: { contentType: image.type } });
         try {
-          const saved = await store.write({ kind: "photo", id: photoId, actor, baseRevision: 0, data: { ownerKind: "piece", ownerId: piece_id }, note });
+          const saved = await store.write({ kind: "photo", id: photoId, actor, baseRevision: 0, data: { ownerKind: owner_kind, ownerId: owner_id }, note });
           return { saved: view(saved.doc), change: saved.seq };
         } catch (error) {
           await env.PHOTOS.delete(keys);

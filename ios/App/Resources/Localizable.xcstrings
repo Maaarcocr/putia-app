@@ -1169,6 +1169,22 @@
         }
       }
     },
+    "outfits.choosePieces.footer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose them from head to feet, outer layers first: the collage lays them out in this order."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scegli i capi dalla testa ai piedi, prima gli strati esterni: il collage li dispone in quest'ordine."
+          }
+        }
+      }
+    },
     "outfits.empty.message": {
       "localizations": {
         "en": {

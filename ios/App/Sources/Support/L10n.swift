@@ -94,6 +94,7 @@ enum L10n {
     static var newOutfit: String { String(localized: "outfits.new") }
     static var outfitTitle: String { String(localized: "outfits.title") }
     static var choosePieces: String { String(localized: "outfits.choosePieces") }
+    static var choosePiecesFooter: String { String(localized: "outfits.choosePieces.footer") }
 
     // MARK: Outfit
     static var why: String { String(localized: "outfit.why") }

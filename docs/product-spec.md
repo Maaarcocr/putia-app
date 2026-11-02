@@ -32,12 +32,12 @@ Pieces whose tags are missing or still suggestions are flagged; confirming is on
 
 ## 3. Outfit workbench
 
-An outfit is a set of owned pieces, shown as a large collage.
+An outfit is a set of owned pieces, shown as a collage made automatically from each piece's main photo. The pieces are listed from head to feet, outer layers first, and the collage lays them out in that order, each over the next: the jacket over the shirt, the shirt over the trousers.
 
 - **Assemble** an outfit from owned pieces, and edit its title and pieces later.
 - **Proposals from the AI** ("make three outfits around this jacket using what I own") come with a note: the intended effect, silhouette and textures, and what a collage can't show.
 - **Stages:** `proposed`, `tried` and `favourite`.
-- **Photos and comments** stay with the outfit: a mirror photo, how it went, the AI's assessment.
+- **Photos and comments** stay with the outfit: a mirror photo, how it went, the AI's assessment. An AI can add photos too: a collage it made that shows the layering, or a similar look it found online.
 
 The AI follows the assessment approach in `docs/styling/`: it judges the whole combination, names the smallest sufficient change, separates observation from preference, and does not hand out rules, scores or flattery.
 

@@ -1,8 +1,7 @@
 import PutiaCore
 import SwiftUI
 
-/// The workbench: outfits as large cards, by stage. Proposed ones come from the person or an AI;
-/// only the person moves them to tried or favourite.
+/// The workbench: outfits as large cards, by stage. Proposed ones come from the person or an AI.
 struct OutfitsView: View {
     @Environment(AppModel.self) private var model
     @State private var path: [Route] = []
@@ -89,7 +88,7 @@ struct OutfitEditor: View {
             List {
                 TextField(L10n.outfitTitle, text: $title)
                     .accessibilityIdentifier("editor.title")
-                Section(L10n.choosePieces) {
+                Section {
                     ForEach(model.library.closet) { piece in
                         Button {
                             if let index = chosen.firstIndex(of: piece.id) {
@@ -109,6 +108,10 @@ struct OutfitEditor: View {
                         .tint(.primary)
                         .accessibilityIdentifier("editor.piece")
                     }
+                } header: {
+                    Text(L10n.choosePieces)
+                } footer: {
+                    Text(L10n.choosePiecesFooter)
                 }
             }
             .navigationTitle(outfit == nil ? L10n.newOutfit : L10n.edit)

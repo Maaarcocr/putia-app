@@ -82,19 +82,32 @@ struct PieceRow: View {
     }
 }
 
-/// An outfit's pieces, large.
+/// An outfit drawn from each piece's main photo, like a flat lay. The pieces run from head to feet
+/// down two overlapping columns, and each lies over the next: the jacket over the shirt, the shirt
+/// over the trousers.
 struct Collage: View {
     @Environment(AppModel.self) private var model
     let pieceIds: [String]
     var height: CGFloat = 150
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-            ForEach(pieceIds, id: \.self) { id in
-                PieceImage(piece: model.library.pieces[id])
-                    .frame(height: height)
+        GeometryReader { geometry in
+            let width = geometry.size.width * 0.6
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(pieceIds.enumerated()), id: \.offset) { index, id in
+                    PhotoView(photoId: model.library.pieces[id].flatMap { model.library.mainPhotoId(of: $0) })
+                        .frame(width: width, height: height)
+                        .offset(x: index.isMultiple(of: 2) ? 0 : geometry.size.width - width, y: top(index))
+                        .zIndex(Double(pieceIds.count - index))
+                }
             }
         }
+        .frame(height: top(pieceIds.count - 1) + height)
+    }
+
+    /// Each row overlaps the one above by a third; the right column sits half a row lower.
+    private func top(_ index: Int) -> CGFloat {
+        height * (0.7 * CGFloat(index / 2) + 0.35 * CGFloat(index % 2))
     }
 }
 
