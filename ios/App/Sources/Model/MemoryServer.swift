@@ -11,6 +11,8 @@ final class MemoryServer: Server {
     private var docs: [String: Doc] = [:]
     private var log: [(change: Change, before: Doc?)] = []
     private var photos: [String: Data] = [:]
+    /// The sample wardrobe's photos, drawn on demand.
+    private var drawings: [String: () -> Data] = [:]
     private var statusChecks = 0
     private let checksBeforeSignIn: Int
     private var clock = 0
@@ -83,7 +85,7 @@ final class MemoryServer: Server {
 
     func photo(_ id: String, size: PhotoSize, account: Account) async throws -> Data {
         try check()
-        guard let data = photos["\(id)/\(size.rawValue)"] else { throw ServerError.refused("not found") }
+        guard let data = photos["\(id)/\(size.rawValue)"] ?? drawings[id]?() else { throw ServerError.refused("not found") }
         return data
     }
 
@@ -144,35 +146,37 @@ final class MemoryServer: Server {
         let outfit = "00000000-0000-4000-8000-000000000010"
         let confirmed = { (value: String) in Attribute(value, state: .confirmed, by: you) }
         let suggested = { (value: String) in Attribute(value, state: .suggested, by: claude) }
-        func photo(_ id: String, of owner: Photo.Owner, _ ownerId: String, _ image: Data, by actor: String, note: String? = nil) {
+        // The photos are drawn when the app first asks for them: drawing with UIKit while the app is
+        // still starting keeps it from picking up its accent colour.
+        func photo(_ id: String, of owner: Photo.Owner, _ ownerId: String, by actor: String, note: String? = nil, _ drawing: @escaping () -> Data) {
             try? server.write(.photo(Photo(ownerKind: owner, ownerId: ownerId)), id: id, baseRevision: 0, actor: actor, note: note)
-            server.photos["\(id)/\(PhotoSize.thumb.rawValue)"] = image
-            server.photos["\(id)/\(PhotoSize.full.rawValue)"] = image
+            server.drawings[id] = drawing
         }
         let ecru = UIColor(red: 0.91, green: 0.87, blue: 0.79, alpha: 1)
-        let pieces: [(String, String, [String: Attribute], Data)] = [
+        let pieces: [(String, String, [String: Attribute], (() -> Data)?)] = [
             (jacket, "Navy chore jacket", ["category": confirmed("jacket"), "material": suggested("cotton canvas"), "cut": suggested("boxy")],
-             drawn(symbol("jacket.fill"), UIColor(red: 0.17, green: 0.23, blue: 0.36, alpha: 1))),
+             { Self.drawn(Self.symbol("jacket.fill"), UIColor(red: 0.17, green: 0.23, blue: 0.36, alpha: 1)) }),
             (shirt, "White oxford shirt", ["category": confirmed("shirt"), "material": confirmed("cotton oxford")],
-             drawn(symbol("tshirt.fill"), UIColor(red: 0.97, green: 0.97, blue: 0.98, alpha: 1))),
+             { Self.drawn(Self.symbol("tshirt.fill"), UIColor(red: 0.97, green: 0.97, blue: 0.98, alpha: 1)) }),
             (trousers, "Grey flannel trousers", ["category": confirmed("trousers"), "material": confirmed("wool flannel")],
-             drawn(trouserShape(), UIColor(red: 0.52, green: 0.54, blue: 0.56, alpha: 1))),
+             { Self.drawn(Self.trouserShape(), UIColor(red: 0.52, green: 0.54, blue: 0.56, alpha: 1)) }),
             (boots, "Brown suede boots", ["category": confirmed("boots")],
-             drawn(symbol("shoe.fill"), UIColor(red: 0.48, green: 0.32, blue: 0.19, alpha: 1))),
-            (knit, "Ecru cable knit", ["category": confirmed("knitwear"), "colour": suggested("ecru"), "material": suggested("wool"), "pattern": suggested("cable")], Data()),
+             { Self.drawn(Self.symbol("shoe.fill"), UIColor(red: 0.48, green: 0.32, blue: 0.19, alpha: 1)) }),
+            (knit, "Ecru cable knit", ["category": confirmed("knitwear"), "colour": suggested("ecru"), "material": suggested("wool"), "pattern": suggested("cable")], nil),
         ]
-        for (index, (id, name, attrs, image)) in pieces.enumerated() {
+        for (index, (id, name, attrs, drawing)) in pieces.enumerated() {
             try? server.write(.piece(Piece(name: name, attrs: attrs)), id: id, baseRevision: 0, actor: you)
-            if !image.isEmpty {
-                photo("00000000-0000-4000-8000-00000000006\(index)", of: .piece, id, image, by: you)
+            if let drawing {
+                photo("00000000-0000-4000-8000-00000000006\(index)", of: .piece, id, by: you, drawing)
             }
         }
         // The person's snapshot of the knit, and a photo of the same product an AI found online.
-        photo("00000000-0000-4000-8000-000000000050", of: .piece, knit, drawn(symbol("tshirt.fill"), ecru, on: UIColor(red: 0.45, green: 0.38, blue: 0.33, alpha: 1)), by: you)
-        photo(
-            "00000000-0000-4000-8000-000000000051", of: .piece, knit, drawn(symbol("tshirt.fill"), ecru), by: claude,
-            note: "Found on shop.example: same style number as on the label"
-        )
+        photo("00000000-0000-4000-8000-000000000050", of: .piece, knit, by: you) {
+            Self.drawn(Self.symbol("tshirt.fill"), ecru, on: UIColor(red: 0.45, green: 0.38, blue: 0.33, alpha: 1))
+        }
+        photo("00000000-0000-4000-8000-000000000051", of: .piece, knit, by: claude, note: "Found on shop.example: same style number as on the label") {
+            Self.drawn(Self.symbol("tshirt.fill"), ecru)
+        }
         try? server.write(
             .outfit(Outfit(
                 title: "Soft workwear", pieceIds: [jacket, shirt, trousers, boots],
@@ -195,10 +199,9 @@ final class MemoryServer: Server {
         )
         let reference = "00000000-0000-4000-8000-000000000070"
         try? server.write(.reference(Reference(title: "Relaxed tailoring")), id: reference, baseRevision: 0, actor: you)
-        photo(
-            "00000000-0000-4000-8000-000000000071", of: .reference, reference,
-            drawn(symbol("figure.walk"), ecru, on: UIColor(red: 0.33, green: 0.40, blue: 0.35, alpha: 1)), by: you
-        )
+        photo("00000000-0000-4000-8000-000000000071", of: .reference, reference, by: you) {
+            Self.drawn(Self.symbol("figure.walk"), ecru, on: UIColor(red: 0.33, green: 0.40, blue: 0.35, alpha: 1))
+        }
         return server
     }
 

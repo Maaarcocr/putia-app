@@ -148,7 +148,7 @@ private struct TagRow: View {
                 Text(L10n.attribute(key))
                 // A tag the person set needs no note; anyone else's says who.
                 if let attribute, suggested || attribute.author != .you {
-                    Label(L10n.provenance(attribute), systemImage: attribute.author.symbol)
+                    Credit(text: L10n.provenance(attribute), symbol: attribute.author.symbol)
                         .font(.caption)
                         .foregroundStyle(suggested ? Color.orange : Color.secondary)
                 }
@@ -159,8 +159,7 @@ private struct TagRow: View {
                     .foregroundStyle(attribute == nil ? .tertiary : .secondary)
                     .multilineTextAlignment(.trailing)
                 if suggested {
-                    Button(L10n.confirm, systemImage: "checkmark", action: confirm)
-                        .labelStyle(.titleAndIcon)
+                    Button(L10n.confirm, action: confirm)
                         .buttonStyle(.bordered)
                         .controlSize(.small)
                         .tint(.orange)

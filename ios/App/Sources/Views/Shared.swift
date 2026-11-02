@@ -33,12 +33,26 @@ extension Author {
     var symbol: String { self == .you ? "person.crop.circle" : "sparkles" }
 }
 
+/// A line of text with its icon close by. (A Label in a list puts the icon in the list's icon
+/// column, far from the text.)
+struct Credit: View {
+    let text: String
+    let symbol: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Image(systemName: symbol)
+            Text(text)
+        }
+    }
+}
+
 /// Who made something: "Made by you" or "Proposed by Claude".
 struct Byline: View {
     let author: Author
 
     var body: some View {
-        Label(L10n.madeBy(author), systemImage: author.symbol)
+        Credit(text: L10n.madeBy(author), symbol: author.symbol)
             .font(.footnote)
             .foregroundStyle(.secondary)
     }
@@ -78,7 +92,7 @@ struct PhotoView: View {
     }
 }
 
-/// A piece's main photo on a soft tile, so a white shirt still shows.
+/// A piece's main photo on a soft tile, with a faint shadow, so a white shirt still shows.
 struct PieceImage: View {
     @Environment(AppModel.self) private var model
     let piece: Record<Piece>?
@@ -86,6 +100,7 @@ struct PieceImage: View {
 
     var body: some View {
         PhotoView(photoId: piece.flatMap { model.library.mainPhotoId(of: $0) })
+            .shadow(color: .black.opacity(0.15), radius: small ? 1 : 3, y: small ? 1 : 2)
             .padding(small ? 4 : 10)
             .background(.fill.tertiary, in: .rect(cornerRadius: small ? 10 : 18))
     }
@@ -118,6 +133,7 @@ struct Collage: View {
             ZStack(alignment: .topLeading) {
                 ForEach(Array(pieceIds.enumerated()), id: \.offset) { index, id in
                     PhotoView(photoId: model.library.pieces[id].flatMap { model.library.mainPhotoId(of: $0) })
+                        .shadow(color: .black.opacity(0.15), radius: 3, y: 2)
                         .frame(width: width, height: height)
                         .offset(x: index.isMultiple(of: 2) ? 0 : geometry.size.width - width, y: top(index))
                         .zIndex(Double(pieceIds.count - index))
@@ -255,8 +271,7 @@ private struct PhotoViewer: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .principal) {
-                        Label(L10n.author(photo.createdBy), systemImage: photo.author.symbol)
-                            .labelStyle(.titleAndIcon)
+                        Credit(text: L10n.author(photo.createdBy), symbol: photo.author.symbol)
                             .font(.headline)
                     }
                     ToolbarItem(placement: .confirmationAction) {
@@ -301,7 +316,7 @@ struct CommentsSection: View {
         Section(L10n.comments) {
             ForEach(model.library.comments(on: subjectId)) { comment in
                 VStack(alignment: .leading, spacing: 4) {
-                    Label(L10n.author(comment.createdBy), systemImage: comment.author.symbol)
+                    Credit(text: L10n.author(comment.createdBy), symbol: comment.author.symbol)
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Text(comment.value.text)
