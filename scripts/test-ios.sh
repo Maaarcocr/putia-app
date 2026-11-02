@@ -43,9 +43,10 @@ xcrun simctl bootstatus "$SIMULATOR_UDID" -b
 mkdir -p ios/build
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 # Every shipped language must pass the full suite; UI tests catch untranslated or truncated strings.
-for locale in en:US it:IT; do
-  LANGUAGE="${locale%%:*}"
-  REGION="${locale##*:}"
+# Italian runs in dark mode, so the screenshots show both appearances.
+for run in en:US:light it:IT:dark; do
+  IFS=: read -r LANGUAGE REGION APPEARANCE <<<"$run"
+  xcrun simctl ui "$SIMULATOR_UDID" appearance "$APPEARANCE"
   RESULT="$ROOT/ios/build/TestResults-$LANGUAGE-$STAMP.xcresult"
   xcodebuild test \
     -project ios/Putia.xcodeproj \

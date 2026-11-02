@@ -1,5 +1,5 @@
-import Foundation
 import PutiaCore
+import UIKit
 
 /// A server kept in memory, for unit and UI tests. It checks revisions like the real one, but
 /// not the rules about what an AI may do (server/test covers those). A pairing code counts as
@@ -144,20 +144,33 @@ final class MemoryServer: Server {
         let outfit = "00000000-0000-4000-8000-000000000010"
         let confirmed = { (value: String) in Attribute(value, state: .confirmed, by: you) }
         let suggested = { (value: String) in Attribute(value, state: .suggested, by: claude) }
-        let pieces: [(String, String, [String: Attribute])] = [
-            (jacket, "Navy chore jacket", ["category": confirmed("jacket"), "material": suggested("cotton canvas"), "cut": suggested("boxy")]),
-            (shirt, "White oxford shirt", ["category": confirmed("shirt"), "material": confirmed("cotton oxford")]),
-            (trousers, "Grey flannel trousers", ["category": confirmed("trousers"), "material": confirmed("wool flannel")]),
-            (boots, "Brown suede boots", ["category": confirmed("boots")]),
-            (knit, "Ecru cable knit", ["category": confirmed("knitwear"), "material": suggested("wool")]),
+        func photo(_ id: String, of owner: Photo.Owner, _ ownerId: String, _ image: Data, by actor: String, note: String? = nil) {
+            try? server.write(.photo(Photo(ownerKind: owner, ownerId: ownerId)), id: id, baseRevision: 0, actor: actor, note: note)
+            server.photos["\(id)/\(PhotoSize.thumb.rawValue)"] = image
+            server.photos["\(id)/\(PhotoSize.full.rawValue)"] = image
+        }
+        let ecru = UIColor(red: 0.91, green: 0.87, blue: 0.79, alpha: 1)
+        let pieces: [(String, String, [String: Attribute], Data)] = [
+            (jacket, "Navy chore jacket", ["category": confirmed("jacket"), "material": suggested("cotton canvas"), "cut": suggested("boxy")],
+             drawn(symbol("jacket.fill"), UIColor(red: 0.17, green: 0.23, blue: 0.36, alpha: 1))),
+            (shirt, "White oxford shirt", ["category": confirmed("shirt"), "material": confirmed("cotton oxford")],
+             drawn(symbol("tshirt.fill"), UIColor(red: 0.97, green: 0.97, blue: 0.98, alpha: 1))),
+            (trousers, "Grey flannel trousers", ["category": confirmed("trousers"), "material": confirmed("wool flannel")],
+             drawn(trouserShape(), UIColor(red: 0.52, green: 0.54, blue: 0.56, alpha: 1))),
+            (boots, "Brown suede boots", ["category": confirmed("boots")],
+             drawn(symbol("shoe.fill"), UIColor(red: 0.48, green: 0.32, blue: 0.19, alpha: 1))),
+            (knit, "Ecru cable knit", ["category": confirmed("knitwear"), "colour": suggested("ecru"), "material": suggested("wool"), "pattern": suggested("cable")], Data()),
         ]
-        for (id, name, attrs) in pieces {
+        for (index, (id, name, attrs, image)) in pieces.enumerated() {
             try? server.write(.piece(Piece(name: name, attrs: attrs)), id: id, baseRevision: 0, actor: you)
+            if !image.isEmpty {
+                photo("00000000-0000-4000-8000-00000000006\(index)", of: .piece, id, image, by: you)
+            }
         }
         // The person's snapshot of the knit, and a photo of the same product an AI found online.
-        try? server.write(.photo(Photo(ownerKind: .piece, ownerId: knit)), id: "00000000-0000-4000-8000-000000000050", baseRevision: 0, actor: you)
-        try? server.write(
-            .photo(Photo(ownerKind: .piece, ownerId: knit)), id: "00000000-0000-4000-8000-000000000051", baseRevision: 0, actor: claude,
+        photo("00000000-0000-4000-8000-000000000050", of: .piece, knit, drawn(symbol("tshirt.fill"), ecru, on: UIColor(red: 0.45, green: 0.38, blue: 0.33, alpha: 1)), by: you)
+        photo(
+            "00000000-0000-4000-8000-000000000051", of: .piece, knit, drawn(symbol("tshirt.fill"), ecru), by: claude,
             note: "Found on shop.example: same style number as on the label"
         )
         try? server.write(
@@ -180,6 +193,51 @@ final class MemoryServer: Server {
             .review(Review(conclusion: .tryCombinations, summary: "Try the cable knit under the chore jacket first; nothing needs buying yet.")),
             id: "00000000-0000-4000-8000-000000000040", baseRevision: 0, actor: claude
         )
+        let reference = "00000000-0000-4000-8000-000000000070"
+        try? server.write(.reference(Reference(title: "Relaxed tailoring")), id: reference, baseRevision: 0, actor: you)
+        photo(
+            "00000000-0000-4000-8000-000000000071", of: .reference, reference,
+            drawn(symbol("figure.walk"), ecru, on: UIColor(red: 0.33, green: 0.40, blue: 0.35, alpha: 1)), by: you
+        )
         return server
+    }
+
+    /// A sample photo: a garment in a colour, on a backdrop like a snapshot, or on nothing like a
+    /// cut-out.
+    private static func drawn(_ garment: UIImage, _ colour: UIColor, on backdrop: UIColor? = nil) -> Data {
+        let size = CGSize(width: 480, height: 600)
+        return UIGraphicsImageRenderer(size: size).pngData { context in
+            if let backdrop {
+                backdrop.setFill()
+                context.fill(CGRect(origin: .zero, size: size))
+            }
+            let scale = min(400 / garment.size.width, 500 / garment.size.height)
+            let width = garment.size.width * scale
+            let height = garment.size.height * scale
+            garment.withTintColor(colour).draw(in: CGRect(x: (size.width - width) / 2, y: (size.height - height) / 2, width: width, height: height))
+        }
+    }
+
+    private static func symbol(_ name: String) -> UIImage {
+        let configuration = UIImage.SymbolConfiguration(pointSize: 300)
+        return UIImage(systemName: name, withConfiguration: configuration) ?? UIImage(systemName: "tshirt.fill", withConfiguration: configuration)!
+    }
+
+    /// SF Symbols has no trousers.
+    private static func trouserShape() -> UIImage {
+        UIGraphicsImageRenderer(size: CGSize(width: 200, height: 320)).image { _ in
+            let legs = UIBezierPath()
+            legs.move(to: CGPoint(x: 30, y: 0))
+            legs.addLine(to: CGPoint(x: 170, y: 0))
+            legs.addLine(to: CGPoint(x: 190, y: 320))
+            legs.addLine(to: CGPoint(x: 112, y: 320))
+            legs.addLine(to: CGPoint(x: 100, y: 80))
+            legs.addLine(to: CGPoint(x: 88, y: 320))
+            legs.addLine(to: CGPoint(x: 10, y: 320))
+            legs.close()
+            UIColor.black.setFill()
+            legs.fill()
+        }
+        .withRenderingMode(.alwaysTemplate)
     }
 }

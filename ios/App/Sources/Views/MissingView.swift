@@ -15,14 +15,18 @@ struct MissingView: View {
             List {
                 Section(L10n.latestConclusion) {
                     if let review = model.library.latestReview {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(L10n.conclusion(review.value.conclusion))
-                                .font(.headline)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label {
+                                Text(L10n.conclusion(review.value.conclusion))
+                            } icon: {
+                                Image(systemName: Self.symbol(review.value.conclusion))
+                                    .foregroundStyle(.tint)
+                            }
+                            .font(.headline)
                             Text(review.value.summary)
-                            Text(L10n.madeBy(review.author))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            Byline(author: review.author)
                         }
+                        .padding(.vertical, 4)
                     } else {
                         Text(L10n.noConclusion)
                             .foregroundStyle(.secondary)
@@ -47,9 +51,10 @@ struct MissingView: View {
                     ForEach(model.library.inspiration) { reference in
                         NavigationLink(value: Route.reference(reference.id)) {
                             HStack(spacing: 12) {
-                                PhotoView(photoId: model.library.photos(of: reference.id).first?.id)
+                                PhotoView(photoId: model.library.photos(of: reference.id).first?.id, fill: true)
                                     .frame(width: 52, height: 52)
-                                    .clipShape(.rect(cornerRadius: 8))
+                                    .background(.fill.tertiary)
+                                    .clipShape(.rect(cornerRadius: 10))
                                 Text(reference.value.title)
                             }
                         }
@@ -70,6 +75,7 @@ struct MissingView: View {
                 }
             }
             .navigationTitle(L10n.tabMissing)
+            .toolbarTitleDisplayMode(.inlineLarge)
             .onChange(of: pick) { _, item in
                 guard let item else { return }
                 pick = nil
@@ -82,6 +88,14 @@ struct MissingView: View {
             }
             .refreshable { await model.refresh() }
             .routes()
+        }
+    }
+
+    private static func symbol(_ conclusion: Review.Conclusion) -> String {
+        switch conclusion {
+        case .gaps: "puzzlepiece"
+        case .tryCombinations: "shuffle"
+        case .nothingNeeded: "checkmark.seal"
         }
     }
 }
@@ -132,25 +146,21 @@ struct WishView: View {
                         Text(L10n.status(status)).tag(status)
                     }
                 }
-                Text(L10n.madeBy(wish.author))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            } footer: {
+                Byline(author: wish.author)
             }
             if let note = wish.value.note {
                 Section(L10n.problem) { Text(note) }
             }
             if let link = wish.value.link, let url = URL(string: link) {
                 Section {
-                    Link(L10n.openLink, destination: url)
+                    Link(destination: url) {
+                        Label(L10n.openLink, systemImage: "safari")
+                    }
                 }
             }
             CommentsSection(subjectKind: .wish, subjectId: id)
             Section {
-                Button(L10n.edit) { editing = true }
-                    .sheet(isPresented: $editing) {
-                        WishEditor(wish: wish) { _ in }
-                            .environment(model)
-                    }
                 Button(L10n.delete, role: .destructive) { confirmingDelete = true }
                     .alert(L10n.deleteWishTitle, isPresented: $confirmingDelete) {
                         Button(L10n.delete, role: .destructive) {
@@ -166,6 +176,16 @@ struct WishView: View {
         }
         .navigationTitle(wish.value.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(L10n.edit) { editing = true }
+                    .accessibilityIdentifier("wish.edit")
+                    .sheet(isPresented: $editing) {
+                        WishEditor(wish: wish) { _ in }
+                            .environment(model)
+                    }
+            }
+        }
     }
 
     private func update(_ change: (inout Wish) -> Void) {
@@ -252,13 +272,24 @@ struct ReferenceView: View {
     private func content(_ reference: Record<Reference>) -> some View {
         List {
             Section {
-                TextField(L10n.referenceTitle, text: $title)
-                    .font(.title3.bold())
-                    .submitLabel(.done)
-                    .onSubmit {
-                        guard !title.trimmed.isEmpty else { return }
-                        update { $0.title = title.trimmed }
+                VStack(spacing: 14) {
+                    if let photo = model.library.photos(of: id).first {
+                        PhotoView(photoId: photo.id, size: .full, cornerRadius: 18)
+                            .frame(height: 380)
                     }
+                    TextField(L10n.referenceTitle, text: $title)
+                        .font(.title2.bold())
+                        .multilineTextAlignment(.center)
+                        .submitLabel(.done)
+                        .onSubmit {
+                            guard !title.trimmed.isEmpty else { return }
+                            update { $0.title = title.trimmed }
+                        }
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            }
+            Section {
                 TextField(L10n.referenceNoteHint, text: $note)
                     .submitLabel(.done)
                     .onSubmit { update { $0.note = note.trimmed.isEmpty ? nil : note.trimmed } }

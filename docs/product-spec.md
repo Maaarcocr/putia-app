@@ -21,11 +21,11 @@ Add a piece by choosing a photo (camera capture comes later). The phone cuts it 
 
 Each piece has:
 
-- **Photos.** Any number: yours, a photo of its label, or a photo of the product an AI found online. One is the main photo, the one the piece is shown with: the first, until you choose another.
+- **Photos.** Any number: yours, a photo of its label, or a photo of the product an AI found online. One is the main photo, the one the piece is shown with: the first, until you choose another. Photos sit in a strip; tapping one opens it large, with who added it, to make it the main photo or delete it.
 - **Tags:** category, colour, material, cut (the *intended* shape: boxy, tapered, cropped, full…), pattern and season. Each says who set it and whether you confirmed it.
 - The outfits it appears in, and comments.
 
-Pieces whose tags are missing or still suggestions are flagged; confirming is one tap, correcting is an edit.
+Pieces whose tags are missing or still suggestions are flagged; confirming is one tap (or one for all of a piece's suggestions), correcting is an edit.
 
 **Getting to know a piece.** Your photo is often a quick snapshot. When a label, tag, barcode or product code is visible (or you name the brand and model in a comment), a connected AI can look the exact product up online, add the listing's clearest photo to the piece, suggest tags and comment with what it found. When it can't tell what a piece is, it asks you for the label, barcode or product code, in the chat or as a comment on the piece: add the photo to the piece, or answer with a comment. A listing shows the product as sold, not your piece, so tags taken from it are still suggestions.
 
@@ -35,7 +35,7 @@ An outfit is a set of owned pieces, shown as a collage made automatically from e
 
 - **Assemble** an outfit from owned pieces, and edit its title and pieces later.
 - **Proposals from the AI** ("make three outfits around this jacket using what I own") come with a note: the intended effect, silhouette and textures, and what a collage can't show.
-- **Favourites.** The heart on an outfit marks it a favourite. The list shows favourites first, then the rest, most recently changed first.
+- **Favourites.** The heart on an outfit, on its card or its page, marks it a favourite. The list shows favourites first, then the rest, most recently changed first.
 - **Photos and comments** stay with the outfit: a mirror photo, how it went, the AI's assessment. An AI can add photos too: a virtual try-on of you wearing the outfit, or a similar look it found online.
 - **Photos of you.** On the Bench you keep a few full-length photos of yourself. A connected AI that can make images uses them, with the pieces' photos, to show you wearing its outfits.
 

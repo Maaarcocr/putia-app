@@ -21,11 +21,18 @@ struct OutfitView: View {
     private func content(_ outfit: Record<Outfit>) -> some View {
         List {
             Section {
-                Collage(pieceIds: outfit.value.pieceIds, height: 170)
-                    .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
-                Text(L10n.madeBy(outfit.author))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                VStack(spacing: 10) {
+                    Collage(pieceIds: outfit.value.pieceIds, height: 170)
+                        .padding(16)
+                        .background(.fill.tertiary, in: .rect(cornerRadius: 24))
+                    Text(outfit.value.title)
+                        .font(.title2.bold())
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 4)
+                    Byline(author: outfit.author)
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
             }
             if let note = outfit.value.note {
                 Section(L10n.why) { Text(note) }
@@ -38,12 +45,6 @@ struct OutfitView: View {
             PhotosSection(owner: .outfit, ownerId: id)
             CommentsSection(subjectKind: .outfit, subjectId: id)
             Section {
-                Button(L10n.edit) { editing = true }
-                    .accessibilityIdentifier("outfit.edit")
-                    .sheet(isPresented: $editing) {
-                        OutfitEditor(outfit: outfit) { _ in }
-                            .environment(model)
-                    }
                 Button(L10n.delete, role: .destructive) { confirmingDelete = true }
                     .alert(L10n.deleteOutfitTitle, isPresented: $confirmingDelete) {
                         Button(L10n.delete, role: .destructive) {
@@ -61,23 +62,38 @@ struct OutfitView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button(
-                    outfit.value.favourite ? L10n.removeFavourite : L10n.addFavourite,
-                    systemImage: outfit.value.favourite ? "heart.fill" : "heart"
-                ) {
-                    update { $0.favourite.toggle() }
-                }
-                .accessibilityIdentifier("outfit.favourite")
+                FavouriteButton(outfit: outfit)
+                    .accessibilityIdentifier("outfit.favourite")
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button(L10n.edit) { editing = true }
+                    .accessibilityIdentifier("outfit.edit")
+                    .sheet(isPresented: $editing) {
+                        OutfitEditor(outfit: outfit) { _ in }
+                            .environment(model)
+                    }
             }
         }
     }
+}
 
-    /// Changes the latest version of the outfit and saves it.
-    private func update(_ change: (inout Outfit) -> Void) {
-        guard let outfit = model.library.outfits[id] else { return }
-        var value = outfit.value
-        change(&value)
-        guard value != outfit.value else { return }
-        Task { await model.save(.outfit(value), id: id, revision: outfit.revision) }
+/// The heart that marks an outfit a favourite, which puts it first.
+struct FavouriteButton: View {
+    @Environment(AppModel.self) private var model
+    let outfit: Record<Outfit>
+
+    var body: some View {
+        let favourite = outfit.value.favourite
+        Button {
+            var value = outfit.value
+            value.favourite.toggle()
+            Task { await model.save(.outfit(value), id: outfit.id, revision: outfit.revision) }
+        } label: {
+            Label(favourite ? L10n.removeFavourite : L10n.addFavourite, systemImage: favourite ? "heart.fill" : "heart")
+                .labelStyle(.iconOnly)
+                .foregroundStyle(favourite ? Color.pink : Color.primary)
+                .contentTransition(.symbolEffect(.replace))
+        }
+        .sensoryFeedback(.impact, trigger: favourite)
     }
 }

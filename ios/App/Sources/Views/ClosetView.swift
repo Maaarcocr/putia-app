@@ -9,17 +9,29 @@ struct ClosetView: View {
     @State private var path: [Route] = []
     @State private var pick: PhotosPickerItem?
 
-    private let columns = [GridItem(.adaptive(minimum: 104), spacing: 12)]
+    private let columns = [GridItem(.adaptive(minimum: 104), spacing: 12, alignment: .top)]
 
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                if model.library.closet.isEmpty {
-                    ContentUnavailableView(L10n.closetEmptyTitle, systemImage: "hanger", description: Text(L10n.closetEmptyMessage))
-                }
                 grid(model.library.closet)
             }
+            .overlay {
+                if model.library.closet.isEmpty {
+                    ContentUnavailableView {
+                        Label(L10n.closetEmptyTitle, systemImage: "hanger")
+                    } description: {
+                        Text(L10n.closetEmptyMessage)
+                    } actions: {
+                        PhotosPicker(selection: $pick, matching: .images) {
+                            Text(L10n.addPiece)
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
+            }
             .navigationTitle(L10n.tabCloset)
+            .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     PhotosPicker(selection: $pick, matching: .images) {
@@ -31,8 +43,8 @@ struct ClosetView: View {
             .overlay {
                 if model.working {
                     ProgressView(L10n.preparingPhoto)
-                        .padding()
-                        .background(.regularMaterial, in: .rect(cornerRadius: 12))
+                        .padding(20)
+                        .background(.regularMaterial, in: .rect(cornerRadius: 18))
                 }
             }
             .refreshable { await model.refresh() }
@@ -51,30 +63,38 @@ struct ClosetView: View {
     }
 
     private func grid(_ pieces: [Record<Piece>]) -> some View {
-        LazyVGrid(columns: columns, spacing: 12) {
+        LazyVGrid(columns: columns, spacing: 16) {
             ForEach(pieces) { piece in
                 NavigationLink(value: Route.piece(piece.id)) {
                     VStack(alignment: .leading, spacing: 6) {
                         PieceImage(piece: piece)
-                            .frame(height: 120)
+                            .aspectRatio(4 / 5, contentMode: .fit)
                             .overlay(alignment: .topTrailing) {
                                 if piece.value.needsReview {
                                     Image(systemName: "questionmark.circle.fill")
-                                        .foregroundStyle(.orange)
+                                        .symbolRenderingMode(.palette)
+                                        .foregroundStyle(.white, .orange)
+                                        .font(.title3)
                                         .padding(6)
                                         .accessibilityLabel(L10n.needsReview)
+                                        .transition(.scale.combined(with: .opacity))
                                 }
                             }
                         Text(L10n.name(of: piece.value))
-                            .font(.caption)
+                            .font(.subheadline)
                             .lineLimit(2)
+                            .multilineTextAlignment(.leading)
                             .foregroundStyle(.primary)
+                            .padding(.horizontal, 4)
                     }
+                    .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("closet.piece")
             }
         }
         .padding()
+        .animation(.default, value: pieces.map(\.id))
+        .animation(.spring, value: pieces.map(\.value.needsReview))
     }
 }

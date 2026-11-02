@@ -21,28 +21,45 @@ struct PieceView: View {
     }
 
     private func content(_ piece: Record<Piece>) -> some View {
-        List {
+        let suggested = AttributeKey.allCases.filter { piece.value[$0]?.state == .suggested }
+        return List {
             Section {
-                PieceImage(piece: piece)
-                    .frame(height: 260)
-                    .listRowInsets(EdgeInsets())
-                TextField(L10n.pieceName, text: $name)
-                    .font(.title3.bold())
-                    .submitLabel(.done)
-                    .onSubmit { update { $0.name = name.trimmed } }
-                    .accessibilityIdentifier("piece.name")
+                VStack(spacing: 14) {
+                    PieceImage(piece: piece)
+                        .frame(height: 300)
+                    TextField(L10n.pieceName, text: $name)
+                        .font(.title2.bold())
+                        .multilineTextAlignment(.center)
+                        .submitLabel(.done)
+                        .onSubmit { update { $0.name = name.trimmed } }
+                        .accessibilityIdentifier("piece.name")
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
             }
             Section {
                 ForEach(AttributeKey.allCases, id: \.self) { key in
                     TagRow(key: key, attribute: piece.value[key]) {
-                        update { $0[key]?.state = .confirmed; $0[key]?.by = Author.you.raw }
+                        update { confirm(key, in: &$0) }
                     } edit: {
                         tagDraft = piece.value[key]?.value ?? ""
                         editing = key
                     }
                 }
             } header: {
-                Text(L10n.tags)
+                HStack {
+                    Text(L10n.tags)
+                    Spacer()
+                    if suggested.count > 1 {
+                        Button(L10n.confirmAll) {
+                            update { value in suggested.forEach { confirm($0, in: &value) } }
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .textCase(nil)
+                        .tint(.orange)
+                        .accessibilityIdentifier("piece.confirmAll")
+                    }
+                }
             } footer: {
                 Text(L10n.tagsFooter)
             }
@@ -58,7 +75,17 @@ struct PieceView: View {
             if !outfits.isEmpty {
                 Section(L10n.usedIn) {
                     ForEach(outfits) { outfit in
-                        NavigationLink(outfit.value.title, value: Route.outfit(outfit.id))
+                        NavigationLink(value: Route.outfit(outfit.id)) {
+                            HStack {
+                                Text(outfit.value.title)
+                                if outfit.value.favourite {
+                                    Spacer()
+                                    Image(systemName: "heart.fill")
+                                        .foregroundStyle(.pink)
+                                        .accessibilityLabel(L10n.favourite)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -79,8 +106,15 @@ struct PieceView: View {
         }
         .navigationTitle(L10n.name(of: piece.value))
         .navigationBarTitleDisplayMode(.inline)
+        .sensoryFeedback(.success, trigger: suggested.count) { old, new in new < old }
         .onAppear { name = piece.value.name }
         .onChange(of: piece.value.name) { _, newName in name = newName }
+    }
+
+    /// A tag the person confirms becomes theirs.
+    private func confirm(_ key: AttributeKey, in piece: inout Piece) {
+        piece[key]?.state = .confirmed
+        piece[key]?.by = Author.you.raw
     }
 
     /// A tag the person sets or edits is confirmed by them.
@@ -99,6 +133,8 @@ struct PieceView: View {
     }
 }
 
+/// A tag: its name and value, and for a suggestion who made it and a button to confirm it.
+/// Tapping the row edits the tag.
 private struct TagRow: View {
     let key: AttributeKey
     let attribute: Attribute?
@@ -106,29 +142,35 @@ private struct TagRow: View {
     let edit: () -> Void
 
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
+        let suggested = attribute?.state == .suggested
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(L10n.attribute(key))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if let attribute {
-                    Text(attribute.value)
-                    Text(L10n.provenance(attribute))
-                        .font(.caption2)
-                        .foregroundStyle(attribute.state == .confirmed ? Color.secondary : Color.orange)
-                } else {
-                    Text(L10n.notSet)
-                        .foregroundStyle(.tertiary)
+                // A tag the person set needs no note; anyone else's says who.
+                if let attribute, suggested || attribute.author != .you {
+                    Label(L10n.provenance(attribute), systemImage: attribute.author.symbol)
+                        .font(.caption)
+                        .foregroundStyle(suggested ? Color.orange : Color.secondary)
                 }
             }
-            Spacer()
-            if attribute?.state == .suggested {
-                Button(L10n.confirm, action: confirm)
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("piece.confirm.\(key.rawValue)")
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 6) {
+                Text(attribute?.value ?? L10n.notSet)
+                    .foregroundStyle(attribute == nil ? .tertiary : .secondary)
+                    .multilineTextAlignment(.trailing)
+                if suggested {
+                    Button(L10n.confirm, systemImage: "checkmark", action: confirm)
+                        .labelStyle(.titleAndIcon)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .tint(.orange)
+                        .accessibilityIdentifier("piece.confirm.\(key.rawValue)")
+                        .transition(.scale.combined(with: .opacity))
+                }
             }
         }
         .contentShape(.rect)
         .onTapGesture(perform: edit)
+        .animation(.default, value: attribute)
     }
 }

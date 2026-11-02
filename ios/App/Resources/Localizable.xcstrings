@@ -1297,6 +1297,22 @@
         }
       }
     },
+    "piece.confirmAll": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm all"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conferma tutte"
+          }
+        }
+      }
+    },
     "piece.delete.title": {
       "localizations": {
         "en": {
@@ -1853,6 +1869,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aggiungi una foto"
+          }
+        }
+      }
+    },
+    "photos.main": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Main photo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto principale"
           }
         }
       }

@@ -12,7 +12,7 @@ final class PutiaUITests: XCTestCase {
         app.launchArguments = ["-ui-testing"]
         app.launch()
 
-        // The closet, and a piece with a tag an AI suggested.
+        // The closet, and a piece with tags an AI suggested: the person confirms one, then the rest.
         let piece = element(app, "closet.piece")
         XCTAssertTrue(piece.waitForExistence(timeout: 30))
         capture("01-closet")
@@ -21,33 +21,47 @@ final class PutiaUITests: XCTestCase {
         XCTAssertTrue(confirm.waitForExistence(timeout: 30))
         capture("02-piece")
         confirm.tap()
-        XCTAssertTrue(confirm.waitForNonExistence(timeout: 30), "the person confirms the suggestion")
+        XCTAssertTrue(confirm.waitForNonExistence(timeout: 30), "the person confirms one suggestion")
+        let confirmAll = element(app, "piece.confirmAll")
+        XCTAssertTrue(confirmAll.waitForExistence(timeout: 30))
+        confirmAll.tap()
+        XCTAssertTrue(element(app, "piece.confirm.colour").waitForNonExistence(timeout: 30), "and then all the others")
 
-        // The piece's photos: the person makes the one an AI found online the main photo.
-        let useAsMain = element(app, "photo.useAsMain.00000000-0000-4000-8000-000000000051")
-        app.swipeUp()
-        XCTAssertTrue(useAsMain.waitForExistence(timeout: 30))
+        // The piece's photos: the person opens the one an AI found online and makes it the main photo.
+        let aiPhoto = element(app, "photo.00000000-0000-4000-8000-000000000051")
+        for _ in 0..<6 where !aiPhoto.exists || !aiPhoto.isHittable { app.swipeUp() }
         XCTAssertTrue(element(app, "photos.add.piece").exists)
         capture("02b-photos")
+        aiPhoto.tap()
+        let useAsMain = element(app, "photo.useAsMain")
+        XCTAssertTrue(useAsMain.waitForExistence(timeout: 30))
+        capture("02c-photo")
         useAsMain.tap()
-        XCTAssertTrue(useAsMain.waitForNonExistence(timeout: 30), "the AI's photo is now the main one")
+        XCTAssertTrue(
+            element(app, "photo.main.00000000-0000-4000-8000-000000000051").waitForExistence(timeout: 30),
+            "the AI's photo is now the main one"
+        )
 
-        // The workbench: an AI's proposal, which the person marks a favourite and edits.
+        // The workbench: an AI's proposal. The heart on its card makes it a favourite (its label turns
+        // from "add to favourites" to "remove from favourites"); the one on the outfit undoes that.
         app.tabBars.buttons.element(boundBy: 1).tap()
         let card = element(app, "outfits.card")
         XCTAssertTrue(card.waitForExistence(timeout: 30))
+        let cardHeart = element(app, "outfits.favourite")
+        let notFavourite = cardHeart.label
+        cardHeart.tap()
+        expectation(for: NSPredicate(format: "label != %@", notFavourite), evaluatedWith: cardHeart)
+        waitForExpectations(timeout: 30)
         capture("03-outfits")
         card.tap()
         let favourite = element(app, "outfit.favourite")
         XCTAssertTrue(favourite.waitForExistence(timeout: 30))
         capture("04-outfit")
-        // The heart's label turns from "add to favourites" to "remove from favourites".
-        let notFavourite = favourite.label
+        let isFavourite = favourite.label
         favourite.tap()
-        expectation(for: NSPredicate(format: "label != %@", notFavourite), evaluatedWith: favourite)
+        expectation(for: NSPredicate(format: "label != %@", isFavourite), evaluatedWith: favourite)
         waitForExpectations(timeout: 30)
         let edit = element(app, "outfit.edit")
-        for _ in 0..<6 where !edit.isHittable { app.swipeUp() }
         edit.tap()
         let save = element(app, "editor.save")
         XCTAssertTrue(save.waitForExistence(timeout: 30))

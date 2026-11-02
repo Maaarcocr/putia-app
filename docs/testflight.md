@@ -17,7 +17,7 @@ Nothing in this repository creates Apple credentials, sets secrets or uploads a 
 | `ios/Config/Putia.xcconfig` | App-target signing variables. The workflow writes `Signing.local.xcconfig` next to it before archiving and always deletes it, so signing applies to the app target only and never to the Swift package targets |
 | `scripts/verify-ios-bundle.py` | Checks the *built* app: no ATS exceptions, no tracking, exactly the declared data (photos and user content, unlinked, for app functionality), `en` and `it` localizations, compiled icon, iPhone only, export-compliance flag |
 | `scripts/check-testflight-tools.sh` | Confirms the pinned Xcode still has the CLI options the pipeline needs |
-| `scripts/test-ios.sh` | Simulator unit and UI tests, once per shipped language |
+| `scripts/test-ios.sh` | Simulator unit and UI tests, once per shipped language (Italian in dark mode) |
 | `scripts/test_testflight_ci.py` | Offline tests of all of the above with fake Apple tools and made-up credentials |
 
 ## 1. Apple setup (done)

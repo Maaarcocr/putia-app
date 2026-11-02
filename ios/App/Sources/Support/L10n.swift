@@ -61,6 +61,7 @@ enum L10n {
     static var tagsFooter: String { String(localized: "piece.tags.footer") }
     static var tagTitle: String { String(localized: "piece.tag.title") }
     static var notSet: String { String(localized: "piece.tag.notSet") }
+    static var confirmAll: String { String(localized: "piece.confirmAll") }
     static var usedIn: String { String(localized: "piece.usedIn") }
     static var deletePieceTitle: String { String(localized: "piece.delete.title") }
     static func attribute(_ key: AttributeKey) -> String {
@@ -78,6 +79,7 @@ enum L10n {
     static var photos: String { String(localized: "photos.title") }
     static var addPhoto: String { String(localized: "photos.add") }
     static var useAsMainPhoto: String { String(localized: "photos.useAsMain") }
+    static var mainPhoto: String { String(localized: "photos.main") }
     static var deletePhotoTitle: String { String(localized: "photos.delete.title") }
     static var photosOfYou: String { String(localized: "photos.you.title") }
     static var photosOfYouFooter: String { String(localized: "photos.you.footer") }

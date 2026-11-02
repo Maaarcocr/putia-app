@@ -9,11 +9,8 @@ struct OutfitsView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
+            let outfits = model.library.workbench
             ScrollView {
-                let outfits = model.library.workbench
-                if outfits.isEmpty {
-                    ContentUnavailableView(L10n.outfitsEmptyTitle, systemImage: "rectangle.on.rectangle.angled", description: Text(L10n.outfitsEmptyMessage))
-                }
                 LazyVStack(spacing: 16) {
                     ForEach(outfits) { outfit in
                         NavigationLink(value: Route.outfit(outfit.id)) {
@@ -21,20 +18,34 @@ struct OutfitsView: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("outfits.card")
+                        .overlay(alignment: .topTrailing) {
+                            FavouriteButton(outfit: outfit)
+                                .buttonStyle(.glass)
+                                .buttonBorderShape(.circle)
+                                .padding(10)
+                                .accessibilityIdentifier("outfits.favourite")
+                        }
                     }
                 }
                 .padding()
+                .animation(.spring, value: outfits.map(\.id))
+            }
+            .overlay {
+                if outfits.isEmpty {
+                    ContentUnavailableView(L10n.outfitsEmptyTitle, systemImage: "rectangle.on.rectangle.angled", description: Text(L10n.outfitsEmptyMessage))
+                }
             }
             .navigationTitle(L10n.tabOutfits)
+            .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button(L10n.newOutfit, systemImage: "plus") { creating = true }
                         .accessibilityIdentifier("outfits.add")
+                        .sheet(isPresented: $creating) {
+                            OutfitEditor(outfit: nil) { id in path.append(.outfit(id)) }
+                                .environment(model)
+                        }
                 }
-            }
-            .sheet(isPresented: $creating) {
-                OutfitEditor(outfit: nil) { id in path.append(.outfit(id)) }
-                    .environment(model)
             }
             .refreshable { await model.refresh() }
             .routes()
@@ -46,33 +57,29 @@ private struct OutfitCard: View {
     let outfit: Record<Outfit>
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 6) {
             Collage(pieceIds: outfit.value.pieceIds)
-            HStack {
-                Text(outfit.value.title)
-                    .font(.headline)
-                if outfit.value.favourite {
-                    Label(L10n.favourite, systemImage: "heart.fill")
-                        .labelStyle(.iconOnly)
-                        .foregroundStyle(.pink)
-                }
-            }
+                .padding(.bottom, 8)
+            Text(outfit.value.title)
+                .font(.title3.bold())
             if let note = outfit.value.note {
                 Text(note)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
-            Text(L10n.madeBy(outfit.author))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Byline(author: outfit.author)
+                .padding(.top, 2)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(.background.secondary, in: .rect(cornerRadius: 20))
+        .background(.fill.tertiary, in: .rect(cornerRadius: 24))
+        .contentShape(.rect(cornerRadius: 24))
     }
 }
 
-/// A new outfit from owned pieces, or a change to an outfit's title and pieces.
+/// A new outfit from owned pieces, or a change to an outfit's title and pieces. The numbers show
+/// the order the collage lays them out in.
 struct OutfitEditor: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -88,8 +95,9 @@ struct OutfitEditor: View {
                     .accessibilityIdentifier("editor.title")
                 Section {
                     ForEach(model.library.closet) { piece in
+                        let index = chosen.firstIndex(of: piece.id)
                         Button {
-                            if let index = chosen.firstIndex(of: piece.id) {
+                            if let index {
                                 chosen.remove(at: index)
                             } else if chosen.count < 12 {
                                 chosen.append(piece.id)
@@ -98,12 +106,14 @@ struct OutfitEditor: View {
                             HStack {
                                 PieceRow(piece: piece)
                                 Spacer()
-                                if chosen.contains(piece.id) {
-                                    Image(systemName: "checkmark")
-                                }
+                                Image(systemName: index.map { "\($0 + 1).circle.fill" } ?? "circle")
+                                    .imageScale(.large)
+                                    .foregroundStyle(index == nil ? Color.secondary : Color.accentColor)
+                                    .contentTransition(.symbolEffect(.replace))
                             }
                         }
                         .tint(.primary)
+                        .accessibilityAddTraits(index == nil ? [] : .isSelected)
                         .accessibilityIdentifier("editor.piece")
                     }
                 } header: {
@@ -112,6 +122,7 @@ struct OutfitEditor: View {
                     Text(L10n.choosePiecesFooter)
                 }
             }
+            .sensoryFeedback(.selection, trigger: chosen)
             .navigationTitle(outfit == nil ? L10n.newOutfit : L10n.edit)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

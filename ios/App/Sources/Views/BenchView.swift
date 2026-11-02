@@ -60,6 +60,7 @@ struct BenchView: View {
                 }
             }
             .navigationTitle(L10n.tabBench)
+            .toolbarTitleDisplayMode(.inlineLarge)
             .task {
                 await model.loadHistory()
                 await model.loadAgents()
@@ -79,22 +80,27 @@ private struct ChangeRow: View {
 
     var body: some View {
         HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(change.label ?? L10n.kind(change.kind))
-                    .lineLimit(2)
-                Text(L10n.changeLine(change))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if let note = change.note {
-                    Text(note)
+            Label {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(change.label ?? L10n.kind(change.kind))
+                        .lineLimit(2)
+                    Text(L10n.changeLine(change))
                         .font(.caption)
-                        .italic()
+                        .foregroundStyle(.secondary)
+                    if let note = change.note {
+                        Text(note)
+                            .font(.caption)
+                            .italic()
+                    }
                 }
+            } icon: {
+                Image(systemName: change.author.symbol)
+                    .foregroundStyle(.secondary)
             }
             Spacer()
-            Button(L10n.undo, action: undo)
+            Button(L10n.undo, systemImage: "arrow.uturn.backward", action: undo)
+                .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
-                .font(.caption)
                 .accessibilityIdentifier("history.undo")
         }
     }
@@ -119,23 +125,30 @@ private struct ConnectView: View {
                             .font(.callout.monospaced())
                             .textSelection(.enabled)
                         Spacer()
-                        Button(copied ? L10n.copied : L10n.copy) {
+                        Button(copied ? L10n.copied : L10n.copy, systemImage: copied ? "checkmark" : "doc.on.doc") {
                             UIPasteboard.general.string = model.server.connectorURL.absoluteString
                             copied = true
                         }
+                        .labelStyle(.iconOnly)
                         .buttonStyle(.borderless)
+                        .contentTransition(.symbolEffect(.replace))
+                        .sensoryFeedback(.success, trigger: copied)
                     }
                 }
                 Section {
                     Text(L10n.connectStep2)
-                    if let pairing {
-                        Text(pairing.code)
-                            .font(.largeTitle.monospaced().bold())
-                            .textSelection(.enabled)
-                            .accessibilityIdentifier("connect.code")
-                    } else {
-                        ProgressView()
+                    Group {
+                        if let pairing {
+                            Text(pairing.code)
+                                .font(.largeTitle.monospaced().bold())
+                                .textSelection(.enabled)
+                                .accessibilityIdentifier("connect.code")
+                        } else {
+                            ProgressView()
+                        }
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
                 }
                 Section {
                     switch status {
@@ -152,6 +165,8 @@ private struct ConnectView: View {
                     Text(L10n.connectFooter)
                 }
             }
+            .animation(.default, value: status)
+            .sensoryFeedback(.success, trigger: status) { _, now in now != .waiting && now != .expired }
             .navigationTitle(L10n.connectAI)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
