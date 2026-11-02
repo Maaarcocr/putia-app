@@ -93,6 +93,16 @@ private let outfit = doc("outfit", outfitId, by: "agent:Claude", data: """
     #expect(library.mainPhotoId(of: chosen) == first)
 }
 
+@Test func photosOfThePersonBelongToTheirAccount() throws {
+    let accountId = "00000000-0000-4000-8000-0000000000aa"
+    let photoId = "00000000-0000-4000-8000-0000000000ab"
+    var library = Library()
+    library.apply(try feed(1, [doc("photo", photoId, data: """
+        {"ownerKind":"person","ownerId":"\(accountId)"}
+        """)]))
+    #expect(library.photos(of: accountId).map(\.value) == [Photo(ownerKind: .person, ownerId: accountId)])
+}
+
 @Test func shortlistHoldsWhatIsStillBeingConsidered() throws {
     var library = Library()
     let wish = { (id: String, status: String) in

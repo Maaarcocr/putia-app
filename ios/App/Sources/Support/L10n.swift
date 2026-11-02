@@ -79,6 +79,8 @@ enum L10n {
     static var addPhoto: String { String(localized: "photos.add") }
     static var useAsMainPhoto: String { String(localized: "photos.useAsMain") }
     static var deletePhotoTitle: String { String(localized: "photos.delete.title") }
+    static var photosOfYou: String { String(localized: "photos.you.title") }
+    static var photosOfYouFooter: String { String(localized: "photos.you.footer") }
 
     // MARK: Outfits
     static var stageLabel: String { String(localized: "outfits.stage") }

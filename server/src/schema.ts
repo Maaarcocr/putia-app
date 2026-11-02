@@ -26,7 +26,8 @@ export const schemas = {
   piece: z.object({ name: z.string().trim().max(120), attrs, mainPhotoId: id.optional() }).strict(),
   /** `note`: why it should work, and what a collage can't show. */
   outfit: z.object({ title: text(120), stage: z.enum(["proposed", "tried", "favourite"]), pieceIds: z.array(id).min(1).max(12), note }).strict(),
-  photo: z.object({ ownerKind: z.enum(["piece", "outfit", "reference"]), ownerId: id }).strict(),
+  /** A photo of a record, or of the person (ownerKind "person", ownerId their account id), for try-ons. */
+  photo: z.object({ ownerKind: z.enum(["piece", "outfit", "reference", "person"]), ownerId: id }).strict(),
   comment: z.object({ subjectKind: z.enum(["piece", "outfit", "reference", "wish"]), subjectId: id, text: text(2000) }).strict(),
   /** An inspiration image (its photo) and what the person likes about it. */
   reference: z.object({ title: text(120), note }).strict(),
@@ -46,7 +47,7 @@ export function referencedIds(kind: Kind, data: Data): [Kind, string][] {
     case "outfit":
       return d.pieceIds.map((pieceId: string) => ["piece", pieceId]);
     case "photo":
-      return [[d.ownerKind, d.ownerId]];
+      return d.ownerKind === "person" ? [] : [[d.ownerKind, d.ownerId]];
     case "comment":
       return [[d.subjectKind, d.subjectId]];
     default:

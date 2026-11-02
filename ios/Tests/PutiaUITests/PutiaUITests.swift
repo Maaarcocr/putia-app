@@ -27,7 +27,7 @@ final class PutiaUITests: XCTestCase {
         let useAsMain = element(app, "photo.useAsMain.00000000-0000-4000-8000-000000000051")
         app.swipeUp()
         XCTAssertTrue(useAsMain.waitForExistence(timeout: 30))
-        XCTAssertTrue(element(app, "photos.add").exists)
+        XCTAssertTrue(element(app, "photos.add.piece").exists)
         capture("02b-photos")
         useAsMain.tap()
         XCTAssertTrue(useAsMain.waitForNonExistence(timeout: 30), "the AI's photo is now the main one")
@@ -59,8 +59,9 @@ final class PutiaUITests: XCTestCase {
         XCTAssertTrue(element(app, "missing.wish").waitForExistence(timeout: 30))
         capture("05-missing")
 
-        // The bench: every change, and connecting an AI.
+        // The bench: photos of the person for try-ons, every change, and connecting an AI.
         app.tabBars.buttons.element(boundBy: 3).tap()
+        XCTAssertTrue(element(app, "photos.add.person").waitForExistence(timeout: 30))
         XCTAssertTrue(element(app, "history.undo").waitForExistence(timeout: 30))
         capture("06-bench")
         element(app, "bench.connect").tap()

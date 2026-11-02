@@ -42,6 +42,11 @@ describe("revisions and conflicts", () => {
     await expect(create("piece", { name: "x" })).rejects.toBeInstanceOf(Invalid);
     await expect(create("outfit", outfit([newId()]))).rejects.toThrow(/doesn't exist/);
   });
+
+  it("keeps photos of the person, which belong to the account rather than a record", async () => {
+    const photo = await store.write({ kind: "photo", id: newId(), actor: "human", baseRevision: 0, data: { ownerKind: "person", ownerId: ACCOUNT } });
+    expect(photo.doc.data).toEqual({ ownerKind: "person", ownerId: ACCOUNT });
+  });
 });
 
 describe("an AI", () => {

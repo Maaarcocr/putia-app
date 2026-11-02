@@ -1889,6 +1889,38 @@
         }
       }
     },
+    "photos.you.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photos of you"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto di te"
+          }
+        }
+      }
+    },
+    "photos.you.footer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A few full-length photos of you, so a connected AI can show you wearing its outfits."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qualche foto a figura intera, così un'AI collegata può mostrarti con addosso i suoi outfit."
+          }
+        }
+      }
+    },
     "photos.delete.title": {
       "localizations": {
         "en": {

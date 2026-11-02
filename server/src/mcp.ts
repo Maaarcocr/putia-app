@@ -15,7 +15,7 @@ const INSTRUCTIONS = `Putia is the user's wardrobe studio. You and the user work
 - Look at the photos ("get_photo") before judging a piece or outfit. A photo can't establish material, true colour, size or comfort: save the tags you set with state "suggested" and "by" set to your name, so the user can confirm them.
 - Get to know each piece. When a label, tag, barcode or product code is visible, or a comment names the brand and model, search the web for that exact product if you can. Add its clearest photo with "add_photo" (the piece alone on a plain or transparent background: no model, no other items), suggest tags from the listing, and comment on the piece with what you found and the link. Only when you're sure it's the same product: a listing shows the product as sold, not this piece's true colour, wear or alterations.
 - When you can't tell exactly what a piece is, ask the user for a photo of its label, care tag or barcode, or the brand and product name or code: in your conversation, or as a comment on the piece (they can add the photo to the piece, or answer with a comment). Ask about the pieces that matter most first, a few at a time.
-- Propose outfits only from owned pieces, as "proposed", with a note on the intended effect, silhouette and texture, and what a collage can't show. List the pieces from head to feet, each outer layer before what goes under it: the app lays their main photos out in that order, each over the next. If you can make images, also make a collage of the pieces' photos that shows how they layer (the jacket over the shirt) and add it to the outfit with "add_photo". The user's comments and photos tell you what works.
+- Propose outfits only from owned pieces, as "proposed", with a note on the intended effect, silhouette and texture, and what a collage can't show. List the pieces from head to feet, each outer layer before what goes under it: the app lays their main photos out in that order, each over the next. If you can make images, make a virtual try-on: the user wearing the outfit, made from their photos ("photosOfUser" in "overview"; get_photo with size "full") and the pieces' photos, and add it to the outfit with "add_photo". The user's comments and photos tell you what works.
 - Before suggesting a purchase, look for combinations of what they own. "Nothing needed" and "try a different combination" are valid conclusions: record them with "save_review". A shortlist entry's note names the problem it solves and the pieces it goes with.
 - Judge whole combinations, name the smallest sufficient change, separate observation from preference. No scores, flattery or universal rules.
 - If a save reports a conflict, the user changed the record meanwhile: read it again and redo your change on top.`;
@@ -94,7 +94,7 @@ export async function handleMcp(request: Request, env: Env, props: Props): Promi
   server.registerTool(
     "overview",
     {
-      description: "Start here: how many pieces, pieces whose tags need review, outfits by stage, the shortlist, and the latest changes (by the user or AI).",
+      description: "Start here: how many pieces, pieces whose tags need review, outfits by stage, the shortlist, photos of the user for try-ons, and the latest changes (by the user or AI).",
       inputSchema: z.object({}),
       annotations: { readOnlyHint: true },
     },
@@ -113,6 +113,7 @@ export async function handleMcp(request: Request, env: Env, props: Props): Promi
           outfits: stages,
           inspiration: (await store.list("reference")).length,
           shortlist: (await store.list("wish")).map((wish) => ({ id: wish.id, name: wish.data.name, status: wish.data.status })),
+          photosOfUser: (await store.list("photo")).filter((photo) => photo.data.ownerKind === "person").map((photo) => photo.id),
           latestChanges: (await store.history({ limit: 15 })).map((change) => ({ change: change.seq, op: change.op, kind: change.kind, id: change.id, by: change.actor, at: change.at, note: change.note })),
         };
       }),
@@ -170,7 +171,7 @@ export async function handleMcp(request: Request, env: Env, props: Props): Promi
     "add_photo",
     {
       description:
-        "Add a photo to a piece, outfit or inspiration image. For a piece: its exact product, found online from a shop or the brand, alone on a plain or transparent background (no model, no other items). For an outfit: a collage you made of its pieces showing how they layer, or a photo of the same look you found online. Pass an https address, or the image itself as a data: URL. JPEG, PNG or WebP, up to 8 MB.",
+        "Add a photo to a piece, outfit or inspiration image. For a piece: its exact product, found online from a shop or the brand, alone on a plain or transparent background (no model, no other items). For an outfit: a virtual try-on you made of the user wearing it, or a photo of the same look you found online. Pass an https address, or the image itself as a data: URL. JPEG, PNG or WebP, up to 8 MB.",
       inputSchema: z.object({
         owner_kind: z.enum(["piece", "outfit", "reference"]),
         owner_id: z.string(),

@@ -111,25 +111,33 @@ struct Collage: View {
     }
 }
 
-/// A record's photos, each of which can be deleted, and a button to add one. A piece's photo can
-/// be made its main one.
+/// A record's (or the person's) photos, each of which can be deleted, and a button to add one. A
+/// piece's photo can be made its main one.
 struct PhotosSection: View {
     @Environment(AppModel.self) private var model
-    let owner: Kind
+    let owner: Photo.Owner
     let ownerId: String
+    var title: String?
+    var footer: String?
     @State private var pick: PhotosPickerItem?
 
     var body: some View {
-        Section(L10n.photos) {
+        Section {
             ForEach(model.library.photos(of: ownerId)) { photo in
                 PhotoRow(photo: photo)
             }
             PhotosPicker(selection: $pick, matching: .images) {
                 Label(L10n.addPhoto, systemImage: "photo.badge.plus")
             }
-            .accessibilityIdentifier("photos.add")
+            .accessibilityIdentifier("photos.add.\(owner.rawValue)")
             if model.working {
                 ProgressView(L10n.preparingPhoto)
+            }
+        } header: {
+            Text(title ?? L10n.photos)
+        } footer: {
+            if let footer {
+                Text(footer)
             }
         }
         .onChange(of: pick) { _, item in

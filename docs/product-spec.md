@@ -37,7 +37,8 @@ An outfit is a set of owned pieces, shown as a collage made automatically from e
 - **Assemble** an outfit from owned pieces, and edit its title and pieces later.
 - **Proposals from the AI** ("make three outfits around this jacket using what I own") come with a note: the intended effect, silhouette and textures, and what a collage can't show.
 - **Stages:** `proposed`, `tried` and `favourite`.
-- **Photos and comments** stay with the outfit: a mirror photo, how it went, the AI's assessment. An AI can add photos too: a collage it made that shows the layering, or a similar look it found online.
+- **Photos and comments** stay with the outfit: a mirror photo, how it went, the AI's assessment. An AI can add photos too: a virtual try-on of you wearing the outfit, or a similar look it found online.
+- **Photos of you.** On the Bench you keep a few full-length photos of yourself. A connected AI that can make images uses them, with the pieces' photos, to show you wearing its outfits.
 
 The AI follows the assessment approach in `docs/styling/`: it judges the whole combination, names the smallest sufficient change, separates observation from preference, and does not hand out rules, scores or flattery.
 
@@ -64,7 +65,7 @@ A **review** records a conclusion: `gaps`, `try-combinations` or `nothing-needed
 ## 7. Privacy
 
 - Photos and records are stored in the studio server (Cloudflare D1 and R2), tied to a random account on your phone. There are no logins, emails, analytics, ads or third-party SDKs.
-- The AI sees only what the connector exposes, and only after you pair it.
+- The AI sees only what the connector exposes, and only after you pair it. That includes the photos of you on the Bench.
 - Deleting everything removes the server data.
 - Cut-outs and thumbnails are made on the phone.
 

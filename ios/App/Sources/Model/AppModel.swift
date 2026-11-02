@@ -158,9 +158,10 @@ final class AppModel {
         return referenceId
     }
 
-    /// Adds a photo to a piece, an outfit or an inspiration image. Returns whether it was saved.
+    /// Adds a photo to a piece, an outfit, an inspiration image or the person. Returns whether it
+    /// was saved.
     @discardableResult
-    func addPhoto(_ data: Data, to owner: Kind, ownerId: String, cutOut: Bool = false) async -> Bool {
+    func addPhoto(_ data: Data, to owner: Photo.Owner, ownerId: String, cutOut: Bool = false) async -> Bool {
         working = true
         defer { working = false }
         guard let prepared = try? await Imaging.prepare(data, cutOut: cutOut) else {

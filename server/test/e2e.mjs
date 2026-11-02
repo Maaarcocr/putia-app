@@ -30,6 +30,9 @@ assert.equal(upload.status, 204);
 assert.equal((await put(`/docs/photo/${photoId}`, { baseRevision: 0, data: { ownerKind: "piece", ownerId: jacketId } })).status, 200);
 const withPhoto = await put(`/docs/piece/${jacketId}`, { baseRevision: 1, data: { ...piece("Navy chore jacket"), mainPhotoId: photoId } });
 assert.equal(withPhoto.status, 200, await withPhoto.clone().text());
+// A photo of the person, for try-ons: it belongs to the account, not to a record.
+const personPhotoId = randomUUID();
+assert.equal((await put(`/docs/photo/${personPhotoId}`, { baseRevision: 0, data: { ownerKind: "person", ownerId: accountId } })).status, 200);
 const stale = await put(`/docs/piece/${jacketId}`, { baseRevision: 1, data: piece("Stale") });
 assert.equal(stale.status, 409, "a stale write is a conflict");
 assert.equal((await stale.json()).current.revision, 2);
@@ -112,6 +115,7 @@ assert.match((await call("guidance")).text, /Candid Menswear Assessment/);
 const overview = await json("overview");
 assert.equal(overview.pieces, 2);
 assert.equal(overview.piecesNeedingReview.length, 2);
+assert.deepEqual(overview.photosOfUser, [personPhotoId], "the AI finds the person's photos for try-ons");
 const photo = await call("get_photo", { photo_id: photoId });
 assert.equal(photo.type, "image");
 assert.equal(photo.mimeType, "image/png");
@@ -149,12 +153,12 @@ const proposal = await json("save_outfit", {
   },
 });
 const outfitId = proposal.saved.id;
-// The AI adds a collage it made, as a data: URL (the 1x1 PNG stands in for it).
-const collage = await json("add_photo", {
-  owner_kind: "outfit", owner_id: outfitId, image_url: `data:image/png;base64,${png.toString("base64")}`, note: "A collage I made of the pieces",
+// The AI adds a try-on it made, as a data: URL (the 1x1 PNG stands in for it).
+const tryOn = await json("add_photo", {
+  owner_kind: "outfit", owner_id: outfitId, image_url: `data:image/png;base64,${png.toString("base64")}`, note: "A try-on I made from your photos",
 });
-assert.equal(collage.saved.ownerKind, "outfit", JSON.stringify(collage));
-assert.deepEqual(new Uint8Array(await (await app(`/photos/${collage.saved.id}/full`)).arrayBuffer()), new Uint8Array(png));
+assert.equal(tryOn.saved.ownerKind, "outfit", JSON.stringify(tryOn));
+assert.deepEqual(new Uint8Array(await (await app(`/photos/${tryOn.saved.id}/full`)).arrayBuffer()), new Uint8Array(png));
 
 // 4. The person tries it and comments; the AI sees that and records a review.
 const feed = await (await app("/changes?since=0")).json();

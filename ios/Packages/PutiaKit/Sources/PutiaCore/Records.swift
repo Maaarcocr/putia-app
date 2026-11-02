@@ -92,12 +92,15 @@ public struct Outfit: Codable, Equatable, Sendable {
     }
 }
 
-/// A photo of a piece, of an outfit worn, or an inspiration image.
+/// A photo of a piece, of an outfit, an inspiration image, or of the person for virtual try-ons
+/// (owner `.person`, owner id their account id).
 public struct Photo: Codable, Equatable, Sendable {
-    public var ownerKind: Kind
+    public enum Owner: String, Codable, Sendable { case piece, outfit, reference, person }
+
+    public var ownerKind: Owner
     public var ownerId: String
 
-    public init(ownerKind: Kind, ownerId: String) {
+    public init(ownerKind: Owner, ownerId: String) {
         self.ownerKind = ownerKind
         self.ownerId = ownerId
     }

@@ -18,11 +18,11 @@ The tools (`server/src/mcp.ts`):
 
 | Tool | Does |
 | --- | --- |
-| `overview` | Counts, pieces whose tags need review, outfits by stage, the shortlist, the latest changes |
+| `overview` | Counts, pieces whose tags need review, outfits by stage, the shortlist, the photos of the person (for try-ons), the latest changes |
 | `guidance` | The whole styling skill from `docs/styling/`: the assessment approach, its principles and its sources |
 | `list`, `get` | Records of one kind; one record with its comments and photos (and, for a piece, its outfits) |
 | `get_photo` | A photo as an image: the cut-out thumbnail or the full photo |
-| `add_photo` | A photo for a piece, outfit or inspiration image: a piece's product found online, or for an outfit a collage the AI made or a similar look it found. It passes an https address (the server downloads it) or the image itself as a data: URL, and a note on where it comes from |
+| `add_photo` | A photo for a piece, outfit or inspiration image: a piece's product found online, or for an outfit a virtual try-on the AI made or a similar look it found. It passes an https address (the server downloads it) or the image itself as a data: URL, and a note on where it comes from |
 | `save_piece`, `save_outfit`, `save_reference`, `save_wish`, `save_review` | Create or update, passing the revision it read |
 | `comment` | A comment on a piece, outfit, inspiration image or shortlist entry |
 | `delete` | Any record (undoable) |
@@ -30,7 +30,7 @@ The tools (`server/src/mcp.ts`):
 
 An AI can change anything the person can: the server doesn't check who wrote what. Every change is attributed to it, kept in the history and can be undone. Its instructions ask it to save the tags it sets as `suggested`, for the person to confirm, and to propose outfits as `proposed`.
 
-`add_photo` takes JPEG, PNG or WebP, up to 8 MB. The instructions ask the AI to list an outfit's pieces from head to feet, outer layers first, since the app's collage follows that order, and to add a collage of its own showing the layering when it can make images.
+`add_photo` takes JPEG, PNG or WebP, up to 8 MB. The instructions ask the AI to list an outfit's pieces from head to feet, outer layers first, since the app's collage follows that order, and, when it can make images, to add a virtual try-on of the person wearing the outfit, made from the photos of them on the Bench (photo records with `ownerKind: "person"`) and the pieces' photos.
 
 Every write names the revision it was based on. If the person changed the record meanwhile, the AI gets a conflict with the current version and redoes its change on top. An undo is refused if the record changed since.
 

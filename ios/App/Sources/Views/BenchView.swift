@@ -35,6 +35,7 @@ struct BenchView: View {
                 } header: {
                     Text(L10n.aiHeader)
                 }
+                PhotosSection(owner: .person, ownerId: model.account.id, title: L10n.photosOfYou, footer: L10n.photosOfYouFooter)
                 Section(L10n.history) {
                     if model.history.isEmpty {
                         Text(L10n.noHistory)
