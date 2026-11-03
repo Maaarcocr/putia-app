@@ -113,7 +113,8 @@ final class HTTPServer: Server {
             body.append(data)
             body.append(Data("\r\n".utf8))
         }
-        part("data", try JSONEncoder().encode(photo), type: "application/json")
+        let record = try JSONEncoder().encode(photo)
+        part("data", record, type: "application/json")
         part("full", full, type: "image/jpeg", filename: "full")
         part("thumb", thumb, type: thumbType, filename: "thumb")
         body.append(Data("--\(boundary)--\r\n".utf8))
