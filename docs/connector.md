@@ -30,7 +30,7 @@ The tools (`server/src/mcp.ts`):
 
 An AI can change anything the person can: the server doesn't check who wrote what. Every change is attributed to it, kept in the history and can be undone. Its instructions ask it to save the tags it sets as `suggested`, for the person to confirm, and tell it that the person's favourite outfits show what works.
 
-`add_photo` takes JPEG, PNG or WebP, up to 8 MB. The instructions ask the AI to list an outfit's pieces from head to feet, outer layers first, since the app's collage follows that order, and, when it can make images, to add a virtual try-on of the person wearing the outfit, made from the photos of them on the Bench (photo records with `ownerKind: "person"`) and the pieces' photos.
+`add_photo` takes JPEG, PNG or WebP, up to 8 MB; the server keeps its own WebP copy, like every photo (see the app's API). The instructions ask the AI to list an outfit's pieces from head to feet, outer layers first, since the app's collage follows that order, and, when it can make images, to add a virtual try-on of the person wearing the outfit, made from the photos of them on the Bench (photo records with `ownerKind: "person"`) and the pieces' photos.
 
 Every write names the revision it was based on. If the person changed the record meanwhile, the AI gets a conflict with the current version and redoes its change on top. An undo is refused if the record changed since.
 
@@ -42,16 +42,17 @@ The instructions also ask the AI to get to know each piece: when a label, tag, b
 
 ## The app's API
 
-The app talks to `/v1/accounts/:id/…` with `Authorization: Bearer <secret>`. The account id and secret are random, made on the phone and kept in the Keychain; the first request claims the account.
+The app signs in with `POST /v1/sign-in` and `{ code }`, the one-time authorization code Sign in with Apple gives it. The server trades the code with Apple for the person's Apple id, makes their account the first time, and answers `{ accountId, secret }`: a new secret for this phone, kept in the Keychain. Every other request goes to `/v1/accounts/:id/…` with `Authorization: Bearer <secret>`; a 401 means the secret no longer works (the account was deleted) and the app goes back to signing in. There is no other way to make an account.
 
 | Route | Does |
 | --- | --- |
 | `GET changes?since=N` | Records changed after change N, and the newest change number |
-| `PUT docs/:kind/:id` | `{ baseRevision, data, note? }`: create (revision 0) or update. 409 with `current` on a stale revision |
+| `PUT docs/:kind/:id` | `{ baseRevision, data, note? }`: create (revision 0) or update. 409 with `current` on a stale revision. Not for photos |
 | `DELETE docs/:kind/:id?base=N` | Delete (undoable) |
 | `GET history?before=N` | The change log, newest first |
 | `POST undo/:seq` | Revert one change |
-| `PUT`/`GET photos/:id/thumb\|full` | Photo bytes (JPEG, PNG or HEIC, up to 8 MB) |
+| `PUT photos/:id` | A new photo: multipart with `data` (the record's JSON), optional `note`, and the `full` and `thumb` images (JPEG, PNG or WebP, up to 8 MB each). The server saves its own WebP copies (at most 2000 and 600 pixels on the long side) and the record together, and answers the record |
+| `GET photos/:id/thumb\|full` | A photo's image |
 | `POST pairing`, `GET pairing/:code` | A pairing code; whether an AI used it |
 | `GET agents`, `DELETE agents` | Connected AIs; disconnect them all |
-| `DELETE` (the account) | Delete everything: records, photos, AIs |
+| `DELETE` (the account) | Delete everything: records, photos, AIs, sessions; ends the Sign in with Apple |

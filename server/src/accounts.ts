@@ -1,7 +1,8 @@
 import type { Env } from "./env";
 
-// Accounts, pairing codes and connected agents. A phone makes up a random account ID and a long
-// random secret; the first request claims the account and later ones must carry the same secret.
+// Accounts, sessions, pairing codes and connected agents. An account is made the first time a
+// person signs in with Apple; each sign-in gives that phone its own long random secret, which
+// every request then carries.
 
 export const PAIRING_SECONDS = 600;
 // No 0/O or 1/I, so codes are easy to read and type.
@@ -12,17 +13,50 @@ export async function sha256(text: string): Promise<string> {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-/** True when `secret` owns the account (claiming it if it's new). */
-export async function claim(db: D1Database, accountId: string, secret: string): Promise<boolean> {
-  const hash = await sha256(secret);
-  const owner = () => db.prepare("SELECT secret_hash FROM accounts WHERE id = ?").bind(accountId).first<{ secret_hash: string }>();
-  const row = await owner();
-  if (row) return row.secret_hash === hash;
+/** True when `secret` is one of the account's sessions. */
+export async function authenticate(db: D1Database, accountId: string, secret: string): Promise<boolean> {
+  const row = await db
+    .prepare("SELECT 1 AS ok FROM sessions WHERE secret_hash = ? AND account_id = ?")
+    .bind(await sha256(secret), accountId)
+    .first<{ ok: number }>();
+  return row !== null;
+}
+
+/**
+ * Signs in the person Apple knows as `appleUser`: their account (made now if it's their first
+ * time) and a new secret for this phone.
+ */
+export async function signIn(db: D1Database, appleUser: string, refreshToken: string | null): Promise<{ accountId: string; secret: string }> {
   await db
-    .prepare("INSERT OR IGNORE INTO accounts (id, secret_hash, agents_key, created_at) VALUES (?, ?, ?, ?)")
-    .bind(accountId, hash, crypto.randomUUID(), new Date().toISOString())
+    .prepare("INSERT OR IGNORE INTO accounts (id, agents_key, created_at, apple_user) VALUES (?, ?, ?, ?)")
+    .bind(crypto.randomUUID(), crypto.randomUUID(), new Date().toISOString(), appleUser)
     .run();
-  return (await owner())?.secret_hash === hash;
+  const account = await db
+    .prepare("UPDATE accounts SET apple_refresh_token = COALESCE(?, apple_refresh_token) WHERE apple_user = ? RETURNING id")
+    .bind(refreshToken, appleUser)
+    .first<{ id: string }>();
+  if (!account) throw new Error("The account wasn't saved.");
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const secret = [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  await db
+    .prepare("INSERT INTO sessions (secret_hash, account_id, created_at) VALUES (?, ?, ?)")
+    .bind(await sha256(secret), account.id, new Date().toISOString())
+    .run();
+  return { accountId: account.id, secret };
+}
+
+/** The account's Apple refresh token, to revoke when it's deleted. */
+export async function appleRefreshToken(db: D1Database, accountId: string): Promise<string | null> {
+  const row = await db.prepare("SELECT apple_refresh_token FROM accounts WHERE id = ?").bind(accountId).first<{ apple_refresh_token: string | null }>();
+  return row?.apple_refresh_token ?? null;
+}
+
+/** Removes the account and its sessions; the records and photos are removed separately. */
+export async function removeAccount(db: D1Database, accountId: string): Promise<void> {
+  await db.batch([
+    db.prepare("DELETE FROM sessions WHERE account_id = ?").bind(accountId),
+    db.prepare("DELETE FROM accounts WHERE id = ?").bind(accountId),
+  ]);
 }
 
 /**

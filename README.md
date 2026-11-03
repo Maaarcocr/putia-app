@@ -43,4 +43,4 @@ scripts/               String check, iOS tests, TestFlight pipeline and its offl
 
 ## Privacy
 
-Photos and records live on Putia's server under a random account made on your phone: no sign-up, email, analytics, ads or third-party SDKs. An AI sees your wardrobe only after you pair it, and you can disconnect it at any time. "Delete everything" removes it all from the server.
+You sign in with Apple; Putia gets only Apple's id for you, not your name or email. Photos and records live on Putia's server under that account. An AI sees your wardrobe only after you pair it, and you can disconnect it at any time. "Delete everything" removes it all from the server.

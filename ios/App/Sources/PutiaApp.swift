@@ -6,11 +6,15 @@ struct PutiaApp: App {
 
     init() {
         // Composition root: the only place that picks the server and where the account is kept.
-        // UI tests (-ui-testing) use an in-memory server with a sample wardrobe.
-        let uiTesting = ProcessInfo.processInfo.arguments.contains("-ui-testing")
+        // UI tests (-ui-testing) use an in-memory server with a sample wardrobe, already signed in
+        // unless they pass -signed-out.
+        let arguments = ProcessInfo.processInfo.arguments
+        let uiTesting = arguments.contains("-ui-testing")
         let host = Bundle.main.object(forInfoDictionaryKey: "PutiaServerHost") as? String ?? ""
         let server: any Server = uiTesting ? MemoryServer.sample() : HTTPServer(host: host)
-        let accounts: any AccountStore = uiTesting ? MemoryAccountStore() : KeychainAccountStore()
+        let accounts: any AccountStore = uiTesting
+            ? MemoryAccountStore(arguments.contains("-signed-out") ? nil : MemoryServer.account)
+            : KeychainAccountStore()
         let cache = uiTesting ? nil : URL.cachesDirectory.appending(path: "Putia")
         _model = State(initialValue: AppModel(server: server, accounts: accounts, cacheDirectory: cache))
     }

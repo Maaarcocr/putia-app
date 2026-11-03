@@ -1,10 +1,45 @@
 import Foundation
 import PutiaCore
 import Testing
+import UIKit
 @testable import Putia
 
+/// A model already signed in, as the app is after Sign in with Apple.
 private func makeModel(_ server: MemoryServer = MemoryServer()) -> AppModel {
-    AppModel(server: server, accounts: MemoryAccountStore(), cacheDirectory: nil)
+    AppModel(server: server, accounts: MemoryAccountStore(MemoryServer.account), cacheDirectory: nil)
+}
+
+@Test func signsInWithTheCodeFromApple() async throws {
+    let accounts = MemoryAccountStore()
+    let model = AppModel(server: MemoryServer(), accounts: accounts, cacheDirectory: nil)
+    #expect(model.account == nil, "a new phone starts signed out")
+    #expect(await model.create(.piece(Piece(name: "Jacket"))) == nil, "nothing is saved before signing in")
+    #expect(await model.signIn(code: "code from Apple"))
+    #expect(model.account == MemoryServer.account)
+    #expect(accounts.account == MemoryServer.account, "the account is kept for next time")
+    #expect(await model.create(.piece(Piece(name: "Jacket"))) != nil)
+}
+
+@Test func aFailedSignInStaysSignedOut() async {
+    let server = MemoryServer()
+    server.failing = true
+    let model = AppModel(server: server, accounts: MemoryAccountStore(), cacheDirectory: nil)
+    #expect(await model.signIn(code: "code from Apple") == false)
+    #expect(model.account == nil)
+}
+
+@Test func addsAPhotoWithItsImagesInOneSave() async throws {
+    let server = MemoryServer()
+    let model = makeModel(server)
+    let pieceId = try #require(await model.create(.piece(Piece(name: "Jacket"))))
+    let image = UIGraphicsImageRenderer(size: CGSize(width: 40, height: 60)).jpegData(withCompressionQuality: 0.8) { context in
+        UIColor.systemBlue.setFill()
+        context.fill(CGRect(x: 0, y: 0, width: 40, height: 60))
+    }
+    #expect(await model.addPhoto(image, to: .piece, ownerId: pieceId))
+    let photo = try #require(model.library.photos(of: pieceId).first)
+    #expect(try await server.photo(photo.id, size: .full, account: MemoryServer.account).isEmpty == false)
+    #expect(try await server.photo(photo.id, size: .thumb, account: MemoryServer.account).isEmpty == false)
 }
 
 @Test func savesAndLoadsRecords() async throws {
@@ -87,14 +122,15 @@ private func makeModel(_ server: MemoryServer = MemoryServer()) -> AppModel {
     #expect(model.problem == .offline)
 }
 
-@Test func deletingEverythingStartsAFreshAccount() async throws {
+@Test func deletingEverythingSignsOut() async throws {
     let server = MemoryServer()
-    let model = makeModel(server)
-    let before = model.account
+    let accounts = MemoryAccountStore(MemoryServer.account)
+    let model = AppModel(server: server, accounts: accounts, cacheDirectory: nil)
     _ = try #require(await model.create(.piece(Piece(name: "Jacket"))))
     await model.deleteEverything()
     #expect(model.library.pieces.isEmpty)
-    #expect(model.account != before)
+    #expect(model.account == nil)
+    #expect(accounts.account == nil)
 }
 
 @Test func anyPhotoOfAPieceCanBeItsMainOne() async throws {

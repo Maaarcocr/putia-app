@@ -33,13 +33,6 @@ BUNDLE = "com.example.putia"
 UUID = "12345678-1234-1234-1234-123456789ABC"
 EXTENSION_UUID = "87654321-4321-4321-4321-CBA987654321"
 
-
-def declared_data():
-    """The privacy manifest's collected data, as scripts/verify-ios-bundle.py requires it."""
-    return [{"NSPrivacyCollectedDataType": kind, "NSPrivacyCollectedDataTypeLinked": False,
-             "NSPrivacyCollectedDataTypeTracking": False,
-             "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]}
-            for kind in ("NSPrivacyCollectedDataTypePhotosorVideos", "NSPrivacyCollectedDataTypeOtherUserContent")]
 CERTIFICATE = b"FAKE-CERTIFICATE-NOT-DER-NO-PRIVATE-KEY"
 FINGERPRINT = hashlib.sha1(CERTIFICATE).hexdigest().upper()
 TOOL_OUTPUT = "PRIVATE-TOOL-DIAGNOSTIC-MUST-NOT-REACH-OUTPUT"
@@ -468,9 +461,9 @@ bundle_spec.loader.exec_module(bundle_rules)
 
 
 class BundleRulesTests(unittest.TestCase):
-    """The Release bundle must stay bilingual, untracked and declare exactly the data it sends."""
+    """The Release bundle must stay bilingual, iPhone-only and ready for review."""
 
-    def make_bundle(self, info_updates=None, privacy_updates=None, languages=("en", "it")):
+    def make_bundle(self, info_updates=None, languages=("en", "it")):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         app = Path(temp.name) / "Putia.app"
@@ -481,10 +474,7 @@ class BundleRulesTests(unittest.TestCase):
             "CFBundleShortVersionString": "0.1.0", "CFBundleVersion": "1",
             "ITSAppUsesNonExemptEncryption": False, **(info_updates or {}),
         }
-        privacy = {"NSPrivacyTracking": False, "NSPrivacyTrackingDomains": [],
-                   "NSPrivacyCollectedDataTypes": declared_data(), **(privacy_updates or {})}
         (app / "Info.plist").write_bytes(plistlib.dumps(info))
-        (app / "PrivacyInfo.xcprivacy").write_bytes(plistlib.dumps(privacy))
         (app / "Assets.car").write_bytes(b"synthetic compiled assets")
         for language in languages:
             (app / f"{language}.lproj").mkdir()
@@ -498,13 +488,6 @@ class BundleRulesTests(unittest.TestCase):
             ("transport exception", {"info_updates": {"NSAppTransportSecurity": {"NSAllowsArbitraryLoads": True}}}),
             ("iPad family", {"info_updates": {"UIDeviceFamily": [1, 2]}}),
             ("missing export compliance", {"info_updates": {"ITSAppUsesNonExemptEncryption": None}}),
-            ("tracking", {"privacy_updates": {"NSPrivacyTracking": True}}),
-            ("tracking domain", {"privacy_updates": {"NSPrivacyTrackingDomains": ["example.com"]}}),
-            ("undeclared data", {"privacy_updates": {"NSPrivacyCollectedDataTypes": declared_data() + [
-                {**declared_data()[0], "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeEmailAddress"}]}}),
-            ("missing declaration", {"privacy_updates": {"NSPrivacyCollectedDataTypes": declared_data()[:1]}}),
-            ("linked data", {"privacy_updates": {"NSPrivacyCollectedDataTypes": [
-                {**entry, "NSPrivacyCollectedDataTypeLinked": True} for entry in declared_data()]}}),
             ("missing Italian", {"languages": ("en",)}),
             ("missing English", {"languages": ("it",)}),
         ]

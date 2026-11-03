@@ -32,7 +32,8 @@ final class AppModel {
     private(set) var working = false
 
     let server: any Server
-    private(set) var account: Account
+    /// Nil until the person signs in with Apple; the screens ask them to.
+    private(set) var account: Account?
     private let accounts: any AccountStore
     private let cacheDirectory: URL?
     @ObservationIgnored private var thumbnails: [String: UIImage] = [:]
@@ -55,12 +56,7 @@ final class AppModel {
         self.server = server
         self.accounts = accounts
         self.cacheDirectory = cacheDirectory
-        let account = accounts.load() ?? {
-            let new = Account.make()
-            accounts.save(new)
-            return new
-        }()
-        self.account = account
+        account = accounts.load()
         saved = cacheDirectory
             .flatMap { try? Data(contentsOf: $0.appending(path: "library.json")) }
             .flatMap { try? JSONDecoder().decode(Library.self, from: $0) } ?? Library()
@@ -74,13 +70,48 @@ final class AppModel {
         UUID().uuidString.lowercased()
     }
 
+    // MARK: Signing in
+
+    /// Signs in with the one-time code Sign in with Apple gave the app. Returns whether it worked.
+    func signIn(code: String) async -> Bool {
+        guard let account = try? await server.signIn(code: code) else { return false }
+        accounts.save(account)
+        self.account = account
+        await refresh()
+        return true
+    }
+
+    /// Forgets the account on this phone, and everything shown from it: back to signing in.
+    private func forget() {
+        accounts.delete()
+        account = nil
+        saved = Library()
+        unsaved = [:]
+        library = Library()
+        history = []
+        agents = []
+        thumbnails = [:]
+        if let cacheDirectory {
+            try? FileManager.default.removeItem(at: cacheDirectory)
+            try? FileManager.default.createDirectory(at: cacheDirectory.appending(path: "photos"), withIntermediateDirectories: true)
+        }
+    }
+
     // MARK: Records
 
     /// Loads what changed on the bench since the last refresh, whoever changed it.
     func refresh() async {
-        guard let feed = try? await server.changes(since: saved.cursor, account: account),
-              feed.cursor != saved.cursor || !feed.docs.isEmpty
-        else { return }
+        guard let account else { return }
+        let feed: Feed
+        do {
+            feed = try await server.changes(since: saved.cursor, account: account)
+        } catch ServerError.signedOut {
+            forget()
+            return
+        } catch {
+            return
+        }
+        guard feed.cursor != saved.cursor || !feed.docs.isEmpty else { return }
         saved.apply(feed)
         show()
         saveCache()
@@ -103,6 +134,11 @@ final class AppModel {
     /// Sends the record's newest change until the server has it.
     private func send(_ id: String) async -> Bool {
         defer { sending[id] = nil }
+        guard let account else {
+            unsaved[id] = nil
+            show()
+            return false
+        }
         while let change = unsaved[id] {
             do {
                 let doc = try await server.save(change.content, id: id, baseRevision: change.base, note: change.note, account: account)
@@ -145,6 +181,7 @@ final class AppModel {
     /// Deletes a record. It stays in the history and can be undone.
     @discardableResult
     func delete(_ kind: Kind, id: String, revision: Int) async -> Bool {
+        guard let account else { return false }
         do {
             saved.apply(try await server.delete(kind, id: id, baseRevision: revision, account: account))
             unsaved[id] = nil
@@ -158,12 +195,13 @@ final class AppModel {
     }
 
     func loadHistory() async {
-        if let history = try? await server.history(account: account) {
+        if let account, let history = try? await server.history(account: account) {
             self.history = history
         }
     }
 
     func undo(_ change: Change) async {
+        guard let account else { return }
         do {
             saved.apply(try await server.undo(change.seq, account: account))
             show()
@@ -189,6 +227,8 @@ final class AppModel {
             problem = .conflict
         case .refused(let message):
             problem = .refused(message)
+        case .signedOut:
+            forget()
         case .unavailable:
             problem = .offline
         }
@@ -212,6 +252,7 @@ final class AppModel {
     /// Adds a photo to a piece, an outfit, a suggestion or the person. Returns whether it was saved.
     @discardableResult
     func addPhoto(_ data: Data, to owner: Photo.Owner, ownerId: String, cutOut: Bool = false) async -> Bool {
+        guard let account else { return false }
         working = true
         defer { working = false }
         guard let prepared = try? await Imaging.prepare(data, cutOut: cutOut) else {
@@ -220,15 +261,21 @@ final class AppModel {
         }
         let photoId = Self.newId()
         do {
-            try await server.putPhoto(prepared.thumb, type: prepared.thumbType, id: photoId, size: .thumb, account: account)
-            try await server.putPhoto(prepared.full, type: "image/jpeg", id: photoId, size: .full, account: account)
+            // The record and its images are saved together.
+            let doc = try await server.addPhoto(
+                Photo(ownerKind: owner, ownerId: ownerId), id: photoId,
+                full: prepared.full, thumb: prepared.thumb, thumbType: prepared.thumbType, account: account
+            )
+            keep(prepared.thumb, photoId, .thumb)
+            keep(prepared.full, photoId, .full)
+            saved.apply(doc)
+            show()
+            saveCache()
+            return true
         } catch {
             report(error)
             return false
         }
-        keep(prepared.thumb, photoId, .thumb)
-        keep(prepared.full, photoId, .full)
-        return await save(.photo(Photo(ownerKind: owner, ownerId: ownerId)), id: photoId, revision: 0)
     }
 
     /// Makes a photo the piece's main one.
@@ -247,7 +294,7 @@ final class AppModel {
             if size == .thumb { thumbnails[key] = image }
             return image
         }
-        guard let data = try? await server.photo(photoId, size: size, account: account) else { return nil }
+        guard let account, let data = try? await server.photo(photoId, size: size, account: account) else { return nil }
         keep(data, photoId, size)
         return UIImage(data: data)
     }
@@ -266,6 +313,7 @@ final class AppModel {
     // MARK: AI
 
     func pairingCode() async -> Pairing? {
+        guard let account else { return nil }
         do {
             return try await server.pairingCode(account: account)
         } catch {
@@ -275,17 +323,19 @@ final class AppModel {
     }
 
     func pairingStatus(_ code: String) async -> PairingStatus? {
-        try? await server.pairingStatus(code, account: account)
+        guard let account else { return nil }
+        return try? await server.pairingStatus(code, account: account)
     }
 
     func loadAgents() async {
-        if let agents = try? await server.agents(account: account) {
+        if let account, let agents = try? await server.agents(account: account) {
             self.agents = agents
         }
     }
 
     /// Cuts every AI off at once. Their changes stay.
     func disconnectAgents() async {
+        guard let account else { return }
         do {
             try await server.disconnectAgents(account: account)
             agents = []
@@ -294,26 +344,15 @@ final class AppModel {
         }
     }
 
-    /// Deletes the account on the server with every record and photo, and starts a new one.
+    /// Deletes the account on the server with every record and photo, and signs out.
     func deleteEverything() async {
+        guard let account else { return }
         do {
             try await server.deleteAccount(account)
         } catch {
             report(error)
             return
         }
-        accounts.delete()
-        account = Account.make()
-        accounts.save(account)
-        saved = Library()
-        unsaved = [:]
-        library = Library()
-        history = []
-        agents = []
-        thumbnails = [:]
-        if let cacheDirectory {
-            try? FileManager.default.removeItem(at: cacheDirectory)
-            try? FileManager.default.createDirectory(at: cacheDirectory.appending(path: "photos"), withIntermediateDirectories: true)
-        }
+        forget()
     }
 }

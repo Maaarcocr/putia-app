@@ -1,4 +1,4 @@
-import { type Data, isKind, type Kind, referencedIds, validate } from "./schema";
+import { type Data, isKind, type Kind, LIMITS, referencedIds, validate } from "./schema";
 
 // The shared records for one account. Every write is checked (shape and references), compared
 // against the revision the writer saw, and recorded in the change log in one transaction.
@@ -121,6 +121,7 @@ export class Store {
     private readonly db: D1Database,
     readonly accountId: string,
     private readonly now: () => Date = () => new Date(),
+    private readonly limits: Record<Kind, number> = LIMITS,
   ) {}
 
   async get(kind: Kind, id: string): Promise<Doc | null> {
@@ -295,23 +296,27 @@ export class Store {
     const at = this.now().toISOString();
     const { kind, id, base } = args;
     // Both statements are guarded by the revision the writer saw, so a write that raced another one
-    // changes nothing and is reported as a conflict.
+    // changes nothing and is reported as a conflict. A new record (base 0) also needs room under its
+    // kind's limit, checked in the same transaction so racing writes can't pass it together.
+    const room = "(? > 0 OR (SELECT COUNT(*) FROM docs WHERE account_id = ? AND kind = ?) < ?)";
+    const roomValues = [base, this.accountId, kind, this.limits[kind]];
     const results = await this.db.batch([
       this.db
         .prepare(
           `INSERT INTO changes (account_id, kind, id, revision, op, actor, before_json, after_json, note, undoes, at)
            SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-           WHERE COALESCE((SELECT revision FROM docs WHERE account_id = ? AND kind = ? AND id = ?), 0) = ?`,
+           WHERE COALESCE((SELECT revision FROM docs WHERE account_id = ? AND kind = ? AND id = ?), 0) = ? AND ${room}`,
         )
         .bind(
           this.accountId, kind, id, base + 1, args.op, args.actor,
           args.before ? JSON.stringify(args.before) : null, JSON.stringify(args.after), args.note, args.undoes, at,
-          this.accountId, kind, id, base,
+          this.accountId, kind, id, base, ...roomValues,
         ),
       this.db
         .prepare(
           `INSERT INTO docs (account_id, kind, id, revision, data, deleted, created_by, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+           SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
+           WHERE ${room}
            ON CONFLICT (account_id, kind, id) DO UPDATE SET
              revision = excluded.revision, data = excluded.data, deleted = excluded.deleted, updated_at = excluded.updated_at
            WHERE docs.revision = ?`,
@@ -319,10 +324,16 @@ export class Store {
         .bind(
           this.accountId, kind, id, base + 1, JSON.stringify(args.after.data), args.after.deleted ? 1 : 0,
           args.createdBy, args.createdAt ?? at, at,
-          base,
+          ...roomValues, base,
         ),
     ]);
-    if (results[0].meta.changes !== 1) throw new Conflict(await this.get(kind, id));
+    if (results[0].meta.changes !== 1) {
+      const current = await this.get(kind, id);
+      if (base === 0 && !current) {
+        throw new Invalid([`This account holds the most ${kind} records it can (${this.limits[kind]}, deleted ones included).`]);
+      }
+      throw new Conflict(current);
+    }
     // The record as just written, without reading it back.
     const doc: Doc = { kind, id, revision: base + 1, ...args.after, createdBy: args.createdBy, createdAt: args.createdAt ?? at, updatedAt: at };
     return { doc, seq: results[0].meta.last_row_id };

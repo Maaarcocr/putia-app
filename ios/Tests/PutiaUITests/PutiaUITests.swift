@@ -106,6 +106,19 @@ final class PutiaUITests: XCTestCase {
         capture("08-connected")
     }
 
+    /// Signed out, the app asks the person to sign in with Apple. (Apple's own sheet can't be
+    /// driven from a UI test; AppModelTests covers what happens after it.)
+    @MainActor
+    func testSigningIn() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing", "-signed-out"]
+        app.launch()
+        XCTAssertTrue(element(app, "signIn.apple").waitForExistence(timeout: 30))
+        XCTAssertFalse(element(app, "closet.piece").exists, "the wardrobe waits for the sign-in")
+        capture("00-sign-in")
+    }
+
     @MainActor
     private func element(_ app: XCUIApplication, _ identifier: String) -> XCUIElement {
         app.descendants(matching: .any)[identifier].firstMatch

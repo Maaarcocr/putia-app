@@ -23,6 +23,9 @@ nonisolated enum ServerError: Error {
     case conflict(current: Doc?)
     /// Refused or not valid, with the server's explanation (in English).
     case refused(String)
+    /// The server no longer knows this phone's secret (the account was deleted, perhaps from
+    /// another phone): sign in again.
+    case signedOut
     /// No connection, or the server failed.
     case unavailable
 }
@@ -31,13 +34,16 @@ nonisolated enum ServerError: Error {
 protocol Server: AnyObject {
     /// The address to add in an AI app as a custom connector.
     var connectorURL: URL { get }
+    /// Trades the one-time code from Sign in with Apple for the account and this phone's secret.
+    func signIn(code: String) async throws -> Account
     func changes(since cursor: Int, account: Account) async throws -> Feed
     func save(_ content: Doc.Content, id: String, baseRevision: Int, note: String?, account: Account) async throws -> Doc
     func delete(_ kind: Kind, id: String, baseRevision: Int, account: Account) async throws -> Doc
     /// The latest changes, newest first.
     func history(account: Account) async throws -> [Change]
     func undo(_ seq: Int, account: Account) async throws -> Doc
-    func putPhoto(_ data: Data, type: String, id: String, size: PhotoSize, account: Account) async throws
+    /// Saves a new photo record with its images: the full photo (JPEG) and its thumbnail.
+    func addPhoto(_ photo: Photo, id: String, full: Data, thumb: Data, thumbType: String, account: Account) async throws -> Doc
     func photo(_ id: String, size: PhotoSize, account: Account) async throws -> Data
     func pairingCode(account: Account) async throws -> Pairing
     func pairingStatus(_ code: String, account: Account) async throws -> PairingStatus
@@ -55,6 +61,19 @@ final class HTTPServer: Server {
     }
 
     var connectorURL: URL { base.appending(path: "mcp") }
+
+    func signIn(code: String) async throws -> Account {
+        struct Session: Decodable {
+            let accountId: String
+            let secret: String
+        }
+        var request = URLRequest(url: base.appending(path: "v1/sign-in"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(["code": code])
+        let session = try JSONDecoder().decode(Session.self, from: await perform(request))
+        return Account(id: session.accountId, secret: session.secret)
+    }
 
     func changes(since cursor: Int, account: Account) async throws -> Feed {
         try JSONDecoder().decode(Feed.self, from: await send("GET", "changes", query: ["since": "\(cursor)"], account: account))
@@ -84,8 +103,22 @@ final class HTTPServer: Server {
         try JSONDecoder().decode(Doc.self, from: await send("POST", "undo/\(seq)", account: account))
     }
 
-    func putPhoto(_ data: Data, type: String, id: String, size: PhotoSize, account: Account) async throws {
-        _ = try await send("PUT", "photos/\(id)/\(size.rawValue)", account: account, body: data, type: type)
+    func addPhoto(_ photo: Photo, id: String, full: Data, thumb: Data, thumbType: String, account: Account) async throws -> Doc {
+        // multipart/form-data: the record's data, then the two images.
+        let boundary = "putia-\(UUID().uuidString)"
+        var body = Data()
+        func part(_ name: String, _ data: Data, type: String, filename: String? = nil) {
+            let file = filename.map { "; filename=\"\($0)\"" } ?? ""
+            body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\(file)\r\nContent-Type: \(type)\r\n\r\n".utf8))
+            body.append(data)
+            body.append(Data("\r\n".utf8))
+        }
+        part("data", try JSONEncoder().encode(photo), type: "application/json")
+        part("full", full, type: "image/jpeg", filename: "full")
+        part("thumb", thumb, type: thumbType, filename: "thumb")
+        body.append(Data("--\(boundary)--\r\n".utf8))
+        let data = try await send("PUT", "photos/\(id)", account: account, body: body, type: "multipart/form-data; boundary=\(boundary)")
+        return try JSONDecoder().decode(Doc.self, from: data)
     }
 
     func photo(_ id: String, size: PhotoSize, account: Account) async throws -> Data {
@@ -143,6 +176,10 @@ final class HTTPServer: Server {
         if let type {
             request.setValue(type, forHTTPHeaderField: "Content-Type")
         }
+        return try await perform(request)
+    }
+
+    private func perform(_ request: URLRequest) async throws -> Data {
         let result: (Data, URLResponse)
         do {
             result = try await URLSession.shared.data(for: request)
@@ -159,6 +196,8 @@ final class HTTPServer: Server {
                 let current: Doc?
             }
             throw ServerError.conflict(current: (try? JSONDecoder().decode(Conflict.self, from: data))?.current)
+        case 401:
+            throw ServerError.signedOut
         case 400..<500:
             struct Refusal: Decodable {
                 let error: String

@@ -198,13 +198,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deletes every piece, outfit, photo and comment from Putia's server and disconnects all AIs. This can't be undone."
+            "value": "Deletes every piece, outfit, photo and comment from Putia's server, disconnects all AIs and signs you out. This can't be undone."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Elimina dal server di Putia ogni capo, abbinamento, foto e commento, e scollega tutte le IA. Non si può annullare."
+            "value": "Elimina dal server di Putia ogni capo, abbinamento, foto e commento, scollega tutte le IA ed esce dall'account. Non si può annullare."
           }
         }
       }
@@ -1357,6 +1357,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "Suggerito da te"
+          }
+        }
+      }
+    },
+    "signIn.failed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't sign in. Check your connection and try again."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accesso non riuscito. Controlla la connessione e riprova."
+          }
+        }
+      }
+    },
+    "signIn.message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in to keep your wardrobe on Putia's server, where you and the AI you connect work on it together. Putia gets an ID for you from Apple, not your name or email."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accedi per tenere il tuo guardaroba sul server di Putia, dove tu e l'IA che colleghi ci lavorate insieme. Putia riceve da Apple un identificativo per te, non il tuo nome né la tua email."
+          }
+        }
+      }
+    },
+    "signIn.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Putia"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Putia"
           }
         }
       }

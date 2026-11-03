@@ -1,5 +1,5 @@
 import { OAuthProvider } from "@cloudflare/workers-oauth-provider";
-import { handleAppRequest } from "./app-api";
+import { handleAppRequest, handleSignIn } from "./app-api";
 import { handleAuthorize } from "./authorize";
 import type { Env, Props } from "./env";
 import { handleMcp } from "./mcp";
@@ -11,6 +11,7 @@ const defaultHandler = {
   async fetch(request: Request, env: Env): Promise<Response> {
     const { pathname } = new URL(request.url);
     if (pathname === "/authorize") return handleAuthorize(request, env);
+    if (pathname === "/v1/sign-in") return handleSignIn(request, env);
     if (pathname.startsWith("/v1/accounts/")) return handleAppRequest(request, env);
     if (pathname === "/") return new Response("Putia studio server. Add /mcp to your AI as a custom connector.\n");
     return new Response("Not found\n", { status: 404 });

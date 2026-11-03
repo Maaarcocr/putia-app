@@ -1,22 +1,43 @@
 // End-to-end check against a local server (`npm run db:local && npx cf dev`):
 //   node test/e2e.mjs [base URL, default http://localhost:5173]
-// The app adds a piece with a photo, an AI pairs and signs in, reads it, renames and tags it, proposes
-// an outfit; the person tries it and comments; the AI suggests something missing, with a link and a
-// photo; changes are undone.
+// The person signs in and adds a piece with a photo, an AI pairs and signs in, reads it, renames and
+// tags it, proposes an outfit; the person tries it and comments; the AI suggests something missing,
+// with a link and a photo; changes are undone; the account is deleted.
 import assert from "node:assert/strict";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 const base = process.argv[2] ?? "http://localhost:5173";
-const accountId = randomUUID();
-const secret = randomBytes(32).toString("hex");
+// With TEST_SIGN_IN, "test:<anything>" stands in for the code Sign in with Apple gives the app.
+const signIn = async (code) => {
+  const response = await fetch(`${base}/v1/sign-in`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) });
+  assert.equal(response.status, 200, await response.clone().text());
+  return response.json();
+};
+const person = `test:${randomUUID()}`;
+const { accountId, secret } = await signIn(person);
 const app = (path, init = {}) =>
   fetch(`${base}/v1/accounts/${accountId}${path}`, { ...init, headers: { Authorization: `Bearer ${secret}`, ...init.headers } });
 const put = (path, value) => app(path, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(value) });
+// A photo is saved with its images: the full photo and the thumbnail (the cut-out).
+const addPhoto = (photoId, data, image = png, type = "image/png") => {
+  const form = new FormData();
+  form.set("data", JSON.stringify(data));
+  form.set("full", new Blob([image], { type }));
+  form.set("thumb", new Blob([image], { type }));
+  return app(`/photos/${photoId}`, { method: "PUT", body: form });
+};
+// A 1x1 PNG stands in for the cut-out.
+const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
 
-// 1. The app claims its account and adds a piece with a photo.
+// 1. The person signs in with Apple and adds a piece with a photo.
 assert.deepEqual(await (await app("/changes?since=0")).json(), { cursor: 0, docs: [] });
 const intruder = await fetch(`${base}/v1/accounts/${accountId}/changes`, { headers: { Authorization: `Bearer ${"x".repeat(64)}` } });
 assert.equal(intruder.status, 401, "another secret is refused");
+const madeUp = await fetch(`${base}/v1/accounts/${randomUUID()}/changes`, { headers: { Authorization: `Bearer ${randomBytes(32).toString("hex")}` } });
+assert.equal(madeUp.status, 401, "a phone can't make up an account");
+const secondPhone = await signIn(person);
+assert.equal(secondPhone.accountId, accountId, "signing in again opens the same bench");
+assert.notEqual(secondPhone.secret, secret, "with a secret of its own");
 
 const jacketId = randomUUID();
 const trousersId = randomUUID();
@@ -24,16 +45,23 @@ const photoId = randomUUID();
 const piece = (name) => ({ name, attrs: {} });
 assert.equal((await put(`/docs/piece/${jacketId}`, { baseRevision: 0, data: piece("Navy chore jacket") })).status, 200);
 assert.equal((await put(`/docs/piece/${trousersId}`, { baseRevision: 0, data: piece("Grey trousers") })).status, 200);
-// A 1x1 PNG stands in for the cut-out.
-const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
-const upload = await app(`/photos/${photoId}/thumb`, { method: "PUT", headers: { "Content-Type": "image/png" }, body: png });
-assert.equal(upload.status, 204);
-assert.equal((await put(`/docs/photo/${photoId}`, { baseRevision: 0, data: { ownerKind: "piece", ownerId: jacketId } })).status, 200);
+const upload = await addPhoto(photoId, { ownerKind: "piece", ownerId: jacketId });
+assert.equal(upload.status, 200, await upload.clone().text());
+assert.equal((await upload.json()).data.ownerId, jacketId);
+const thumb = await app(`/photos/${photoId}/thumb`);
+assert.equal(thumb.headers.get("Content-Type"), "image/webp", "the server keeps its own copy of every image");
+assert.ok((await thumb.arrayBuffer()).byteLength > 0);
+const notAnImage = await addPhoto(randomUUID(), { ownerKind: "piece", ownerId: jacketId }, Buffer.from("not a photo, just a file"), "image/jpeg");
+assert.equal(notAnImage.status, 422, "only images are kept");
+assert.equal((await put(`/docs/photo/${randomUUID()}`, { baseRevision: 0, data: { ownerKind: "piece", ownerId: jacketId } })).status, 405,
+  "a photo record can't be made without its images");
+const orphan = await addPhoto(randomUUID(), { ownerKind: "piece", ownerId: randomUUID() });
+assert.equal(orphan.status, 422, "a photo must belong to a record that exists");
 const withPhoto = await put(`/docs/piece/${jacketId}`, { baseRevision: 1, data: { ...piece("Navy chore jacket"), mainPhotoId: photoId } });
 assert.equal(withPhoto.status, 200, await withPhoto.clone().text());
 // A photo of the person, for try-ons: it belongs to the account, not to a record.
 const personPhotoId = randomUUID();
-assert.equal((await put(`/docs/photo/${personPhotoId}`, { baseRevision: 0, data: { ownerKind: "person", ownerId: accountId } })).status, 200);
+assert.equal((await addPhoto(personPhotoId, { ownerKind: "person", ownerId: accountId })).status, 200);
 const stale = await put(`/docs/piece/${jacketId}`, { baseRevision: 1, data: piece("Stale") });
 assert.equal(stale.status, 409, "a stale write is a conflict");
 assert.equal((await stale.json()).current.revision, 2);
@@ -119,7 +147,7 @@ assert.equal(overview.piecesNeedingReview.length, 2);
 assert.deepEqual(overview.photosOfUser, [personPhotoId], "the AI finds the person's photos for try-ons");
 const photo = await call("get_photo", { photo_id: photoId });
 assert.equal(photo.type, "image");
-assert.equal(photo.mimeType, "image/png");
+assert.equal(photo.mimeType, "image/webp");
 
 const jacket = await json("get", { kind: "piece", id: jacketId });
 const attrs = {
@@ -141,10 +169,13 @@ const found = await json("add_photo", {
   note: `Found on ${productPage}: same product code as on the label`,
 });
 assert.equal(found.saved.by, "agent:Test Agent", JSON.stringify(found));
-assert.equal((await call("get_photo", { photo_id: found.saved.id })).mimeType, "image/png");
+assert.equal((await call("get_photo", { photo_id: found.saved.id })).mimeType, "image/webp");
 assert.deepEqual((await json("get", { kind: "piece", id: jacketId })).photos.map((photo) => photo.id).sort(), [photoId, found.saved.id].sort());
 assert.match((await call("add_photo", { owner_kind: "piece", owner_id: jacketId, image_url: repoFile("README.md"), note: productPage })).text,
   /must be a JPEG, PNG or WebP/, "only images are saved");
+assert.match((await call("add_photo", {
+  owner_kind: "piece", owner_id: jacketId, image_url: `data:image/png;base64,${Buffer.from("plain text").toString("base64")}`, note: productPage,
+})).text, /must be a JPEG, PNG or WebP/, "an image is judged by its contents, not its label");
 
 const proposal = await json("save_outfit", {
   note: "Built around the jacket",
@@ -159,7 +190,7 @@ const tryOn = await json("add_photo", {
   owner_kind: "outfit", owner_id: outfitId, image_url: `data:image/png;base64,${png.toString("base64")}`, note: "A try-on I made from your photos",
 });
 assert.equal(tryOn.saved.ownerKind, "outfit", JSON.stringify(tryOn));
-assert.deepEqual(new Uint8Array(await (await app(`/photos/${tryOn.saved.id}/full`)).arrayBuffer()), new Uint8Array(png));
+assert.equal((await app(`/photos/${tryOn.saved.id}/full`)).headers.get("Content-Type"), "image/webp");
 
 // 4. The person marks it a favourite and comments; the AI sees that and suggests something missing.
 const feed = await (await app("/changes?since=0")).json();
@@ -200,5 +231,9 @@ assert.equal((await app("/agents", { method: "DELETE" })).status, 204);
 const revoked = await fetch(`${base}/mcp`, { method: "POST", headers: { Authorization: `Bearer ${tokens.access_token}` } });
 assert.equal(revoked.status, 401);
 assert.equal((await app("", { method: "DELETE" })).status, 204);
-assert.equal((await app(`/photos/${photoId}/thumb`)).status, 404, "photos are deleted with the account");
+assert.equal((await app(`/photos/${photoId}/thumb`)).status, 401, "every sign-in ends with the account");
+const fresh = await signIn(person);
+assert.notEqual(fresh.accountId, accountId, "signing in again starts an empty bench");
+const freshFeed = await (await fetch(`${base}/v1/accounts/${fresh.accountId}/changes?since=0`, { headers: { Authorization: `Bearer ${fresh.secret}` } })).json();
+assert.deepEqual(freshFeed, { cursor: 0, docs: [] });
 console.log("e2e OK");

@@ -55,11 +55,13 @@ A suggestion has a name, a note on the problem it solves in terms of what you ow
 - Anyone can comment on a piece, outfit or suggestion.
 - **Connecting an AI:** Bench → Connect an AI shows the connector address and a one-time pairing code. The AI signs in with that code. The Bench lists connected AIs and can disconnect all at once, instantly.
 
-## 6. Privacy
+## 6. Account and privacy
 
-- Photos and records are stored in the studio server (Cloudflare D1 and R2), tied to a random account on your phone. There are no logins, emails, analytics, ads or third-party SDKs.
+- You sign in with Apple the first time you open the app. Putia asks Apple for no name and no email: it gets only Apple's id for you. Signing in on another iPhone opens the same bench.
+- Photos and records are stored in the studio server (Cloudflare D1 and R2), under your account. The server keeps its own copy of each photo, scaled to at most 2000 pixels on its long side.
+- An account holds a generous but limited number of records of each kind (for example 3,000 photos, deleted ones included, since they can be undone).
 - The AI sees only what the connector exposes, and only after you pair it. That includes the photos of you on the Bench.
-- Deleting everything removes the server data.
+- Deleting everything removes the server data, ends the Sign in with Apple and signs you out.
 - Cut-outs and thumbnails are made on the phone.
 
 ## 7. Not in scope

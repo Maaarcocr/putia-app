@@ -56,6 +56,8 @@ targets:
         PROVISIONING_PROFILE_SPECIFIER: $(PUTIA_PROVISIONING_PROFILE)
         OTHER_CODE_SIGN_FLAGS: $(PUTIA_OTHER_CODE_SIGN_FLAGS)
         INFOPLIST_FILE: App/Info.plist
+        # Sign in with Apple. The App ID and its App Store profile need the capability too.
+        CODE_SIGN_ENTITLEMENTS: App/Putia.entitlements
         # iPhone only. Set on the target because XcodeGen's app preset defaults to "1,2".
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

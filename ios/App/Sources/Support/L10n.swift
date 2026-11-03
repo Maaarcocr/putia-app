@@ -28,6 +28,11 @@ enum L10n {
     static var deleteUndoable: String { String(localized: "common.deleteUndoable") }
     static var preparingPhoto: String { String(localized: "common.preparingPhoto") }
 
+    // MARK: Signing in
+    static var signInTitle: String { String(localized: "signIn.title") }
+    static var signInMessage: String { String(localized: "signIn.message") }
+    static var signInFailed: String { String(localized: "signIn.failed") }
+
     // MARK: Problems
     static var notSaved: String { String(localized: "problem.title") }
     static func message(_ problem: Problem) -> String {

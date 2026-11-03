@@ -10,6 +10,14 @@ struct RootView: View {
     @State private var tab = AppTab.closet
 
     var body: some View {
+        if model.account == nil {
+            SignInView()
+        } else {
+            bench
+        }
+    }
+
+    private var bench: some View {
         TabView(selection: $tab) {
             Tab(L10n.tabCloset, systemImage: "hanger", value: AppTab.closet) {
                 ClosetView()

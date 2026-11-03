@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { LIMITS } from "../src/schema";
 import { Conflict, Invalid, Store } from "../src/store";
 import { testDatabase } from "./d1";
 
@@ -115,5 +116,21 @@ describe("history and undo", () => {
     const next = await store.feed(cursor);
     expect(next.docs.map((doc) => doc.kind)).toEqual(["comment"]);
     expect(next.docs[0].createdBy).toBe("human");
+  });
+});
+
+describe("limits", () => {
+  it("caps how many records of a kind an account holds, deleted ones included", async () => {
+    store = new Store(testDatabase(), ACCOUNT, undefined, { ...LIMITS, piece: 2 });
+    const jacket = await create("piece", piece());
+    await create("piece", piece());
+    await expect(create("piece", piece())).rejects.toThrow(/the most piece records it can \(2/);
+    // Records already there still change, and deleting one doesn't make room: it can be undone.
+    await store.write({ kind: "piece", id: jacket.id, actor: "human", baseRevision: 1, data: piece({ name: "Renamed" }) });
+    const removed = await store.remove("piece", jacket.id, "human", 2);
+    await expect(create("piece", piece())).rejects.toBeInstanceOf(Invalid);
+    expect((await store.undo(removed.seq, "human")).doc.deleted).toBe(false);
+    // Other kinds have their own limit.
+    expect((await create("wish", { name: "Loafers" })).revision).toBe(1);
   });
 });

@@ -4,16 +4,11 @@ import Security
 
 private let logger = Logger(subsystem: "dev.putia.app", category: "Account")
 
-/// This phone's account on the server: a random id and secret made on the phone. No sign-up,
-/// no email; whoever holds the secret is the account.
+/// This phone's account on the server: the account's id and this phone's secret, which the server
+/// gives the app when the person signs in with Apple. Every request carries the secret.
 nonisolated struct Account: Codable, Equatable, Sendable {
     let id: String
     let secret: String
-
-    static func make() -> Account {
-        let bytes = (0..<32).map { _ in UInt8.random(in: .min ... .max) }
-        return Account(id: UUID().uuidString.lowercased(), secret: bytes.map { String(format: "%02x", $0) }.joined())
-    }
 }
 
 /// Where the account is kept.
@@ -62,6 +57,9 @@ final class KeychainAccountStore: AccountStore {
 
 final class MemoryAccountStore: AccountStore {
     var account: Account?
+    init(_ account: Account? = nil) {
+        self.account = account
+    }
     func load() -> Account? { account }
     func save(_ account: Account) { self.account = account }
     func delete() { account = nil }

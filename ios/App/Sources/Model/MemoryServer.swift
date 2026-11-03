@@ -5,6 +5,8 @@ import UIKit
 /// not the rules about what an AI may do (server/test covers those). A pairing code counts as
 /// used after a few status checks, so UI tests see the code and then "connected".
 final class MemoryServer: Server {
+    /// The account every sign-in opens.
+    static let account = Account(id: "00000000-0000-4000-8000-0000000000aa", secret: "memory")
     var connectorURL: URL { URL(string: "https://putia.example/mcp")! }
     var failing = false
     private(set) var agentNames: [String] = []
@@ -43,6 +45,11 @@ final class MemoryServer: Server {
         return doc
     }
 
+    func signIn(code: String) async throws -> Account {
+        try check()
+        return Self.account
+    }
+
     func changes(since cursor: Int, account: Account) async throws -> Feed {
         try check()
         let touched = Set(log.filter { $0.change.seq > cursor }.map { "\($0.change.kind.rawValue)/\($0.change.recordId)" })
@@ -78,9 +85,12 @@ final class MemoryServer: Server {
         )
     }
 
-    func putPhoto(_ data: Data, type: String, id: String, size: PhotoSize, account: Account) async throws {
+    func addPhoto(_ photo: Photo, id: String, full: Data, thumb: Data, thumbType: String, account: Account) async throws -> Doc {
         try check()
-        photos["\(id)/\(size.rawValue)"] = data
+        let doc = try write(.photo(photo), id: id, baseRevision: 0, actor: Author.you.raw)
+        photos["\(id)/full"] = full
+        photos["\(id)/thumb"] = thumb
+        return doc
     }
 
     func photo(_ id: String, size: PhotoSize, account: Account) async throws -> Data {

@@ -1,10 +1,10 @@
 import { McpServer, WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/server";
 import * as z from "zod";
 import { agentsKey } from "./accounts";
-import { photoKey } from "./app-api";
 import type { Env, Props } from "./env";
 import { describeError } from "./errors";
 import { STYLING_GUIDANCE } from "./guidance";
+import { addPhoto, MAX_IMAGE_BYTES, photoKey, readAtMost } from "./photos";
 import { KINDS, schemas } from "./schema";
 import { type Doc, Invalid, NotFound, Store } from "./store";
 
@@ -20,28 +20,21 @@ const INSTRUCTIONS = `Putia is the user's wardrobe studio. You and the user work
 - Judge whole combinations, name the smallest sufficient change, separate observation from preference. No scores, flattery or universal rules.
 - If a save reports a conflict, the user changed the record meanwhile: read it again and redo your change on top.`;
 
-const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const MAX_IMAGE_BYTES = 8_000_000;
-
 /** An image an AI passes: a data: URL with an image it made, or an https address the Worker downloads. */
-async function readImage(url: string): Promise<{ bytes: ArrayBuffer; type: string }> {
-  let type: string;
-  let bytes: ArrayBuffer;
-  const data = /^data:([^;,]+);base64,(.+)$/s.exec(url);
+async function readImage(url: string): Promise<ArrayBuffer> {
+  const tooLarge = new Invalid(["The image is larger than 8 MB. Choose a smaller one."]);
+  const data = /^data:[^;,]+;base64,(.+)$/s.exec(url);
   if (data) {
-    type = data[1].toLowerCase();
-    bytes = Uint8Array.from(atob(data[2]), (char) => char.charCodeAt(0)).buffer;
-  } else if (url.startsWith("https://")) {
-    const response = await fetch(url, { headers: { "User-Agent": "Putia/1.0 (+https://api.putia.app)" } }).catch(() => null);
-    if (!response?.ok) throw new Invalid([`Couldn't download ${url} (${response?.status ?? "no answer"}). Try another image.`]);
-    type = (response.headers.get("Content-Type") ?? "").split(";")[0].trim().toLowerCase();
-    bytes = await response.arrayBuffer();
-  } else {
-    throw new Invalid(["image_url must be an https address or a data: URL."]);
+    if ((data[1].length * 3) / 4 > MAX_IMAGE_BYTES) throw tooLarge;
+    return Uint8Array.from(atob(data[1]), (char) => char.charCodeAt(0)).buffer;
   }
-  if (!IMAGE_TYPES.includes(type)) throw new Invalid([`That is ${type || "not an image"}: it must be a JPEG, PNG or WebP image.`]);
-  if (bytes.byteLength > MAX_IMAGE_BYTES) throw new Invalid(["The image is larger than 8 MB. Choose a smaller one."]);
-  return { bytes, type };
+  if (!url.startsWith("https://")) throw new Invalid(["image_url must be an https address or a data: URL."]);
+  const response = await fetch(url, { headers: { "User-Agent": "Putia/1.0 (+https://api.putia.app)" } }).catch(() => null);
+  if (!response?.ok) throw new Invalid([`Couldn't download ${url} (${response?.status ?? "no answer"}). Try another image.`]);
+  if (Number(response.headers.get("Content-Length") ?? "0") > MAX_IMAGE_BYTES) throw tooLarge;
+  const bytes = await readAtMost(response.body, MAX_IMAGE_BYTES);
+  if (!bytes) throw tooLarge;
+  return bytes;
 }
 
 const text = (value: unknown, isError = false) => ({
@@ -178,18 +171,10 @@ export async function handleMcp(request: Request, env: Env, props: Props): Promi
     },
     async ({ owner_kind, owner_id, image_url, note }) =>
       attempt(async () => {
-        const image = await readImage(image_url);
-        const photoId = crypto.randomUUID();
-        // The same image serves as the thumbnail.
-        const keys = [photoKey(props.accountId, photoId, "full"), photoKey(props.accountId, photoId, "thumb")];
-        for (const key of keys) await env.PHOTOS.put(key, image.bytes, { httpMetadata: { contentType: image.type } });
-        try {
-          const saved = await store.write({ kind: "photo", id: photoId, actor, baseRevision: 0, data: { ownerKind: owner_kind, ownerId: owner_id }, note });
-          return { saved: view(saved.doc), change: saved.seq };
-        } catch (error) {
-          await env.PHOTOS.delete(keys);
-          throw error;
-        }
+        const full = await readImage(image_url);
+        const data = { ownerKind: owner_kind, ownerId: owner_id };
+        const saved = await addPhoto(env, store, { id: crypto.randomUUID(), actor, data, note, full });
+        return { saved: view(saved.doc), change: saved.seq };
       }),
   );
 

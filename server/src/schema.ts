@@ -36,6 +36,12 @@ export const schemas = {
   wish: z.object({ name: text(120), note, links: z.array(z.string().url().max(500)).max(10).default([]) }).strict(),
 } as const satisfies Record<Kind, z.ZodType>;
 
+/**
+ * The most records of each kind one account can hold. Deleted ones count: they stay, with a
+ * photo's images, so they can be undone. A wardrobe of a few hundred pieces is far below these.
+ */
+export const LIMITS: Record<Kind, number> = { piece: 1000, outfit: 2000, photo: 3000, comment: 10000, wish: 500 };
+
 export type Data = Record<string, unknown>;
 
 /** The records a record points at, as [kind, id] pairs, so writes can check they exist. */

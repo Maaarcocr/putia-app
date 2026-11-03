@@ -22,8 +22,9 @@ Nothing in this repository creates Apple credentials, sets secrets or uploads a 
 
 ## 1. Apple setup (done)
 
-- **App ID** `com.rudilosso.putia` on team `2R27Z5A8V6`. No capabilities: Putia has no push, iCloud, HealthKit or Sign in with Apple.
-- **App Store distribution profile** "Putia App Store" for that App ID, signed with the team's Apple Distribution certificate (expires October 2027).
+- **App ID** `com.rudilosso.putia` on team `2R27Z5A8V6`, with one capability: **Sign in with Apple** (`ios/App/Putia.entitlements`). No push, iCloud or HealthKit.
+- **App Store distribution profile** "Putia App Store" for that App ID, signed with the team's Apple Distribution certificate (expires October 2027). It must be made again after a capability changes, and `APPLE_APP_STORE_PROFILE_BASE64` updated with it: an archive whose profile lacks Sign in with Apple fails with `ARCHIVE_PROVISIONING_MISMATCH`.
+- **Sign in with Apple key** (Certificates, IDs & Profiles → Keys), enabled for Sign in with Apple with `com.rudilosso.putia` as its primary App ID. The server uses it (docs/architecture.md, "Deploying"); its `.p8` is never committed.
 - **App Store Connect app** "Putia" (Apple ID 6829458173, SKU `putia`), primary language English, with an Italian localization.
 - Reused from the team: the Apple Distribution certificate (`.p12`) and the App Store Connect team API key (`.p8`).
 
@@ -63,7 +64,7 @@ This repository is **public**. Anyone with write access can change workflows and
    - when that passes, **upload** with a fresh build number.
 3. In App Store Connect, wait for processing, then:
    - the build declares no non-exempt encryption, so no export-compliance question should come up;
-   - App Privacy: **Photos** and **Other User Content**, collected for **App Functionality**, **not linked** to the user's identity, **not used for tracking**;
+   - App Privacy: **User ID** (from Sign in with Apple), **Photos** and **Other User Content**, collected for **App Functionality**, **linked** to the user, **not used for tracking**;
    - the internal TestFlight group "Me" has automatic distribution: each processed build reaches its testers by itself.
 
 ## Verification boundary

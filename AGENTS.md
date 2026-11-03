@@ -2,7 +2,7 @@
 
 ## Project summary
 
-Putia is a private wardrobe studio for iPhone (Swift 6, SwiftUI, iOS 26+) with a small server (`server/`, a Cloudflare Worker with D1 and R2). The AI is **not** in the app: the person connects their own AI to the server over MCP, and both work on the same records.
+Putia is a private wardrobe studio for iPhone (Swift 6, SwiftUI, iOS 26+) with a small server (`server/`, a Cloudflare Worker with D1, R2 and Images). The AI is **not** in the app: the person connects their own AI to the server over MCP, and both work on the same records.
 
 Status: first vertical slice (0.1). See `docs/product-spec.md` §8.
 
@@ -31,7 +31,6 @@ The owner's most important rule: plain, standard, boring code, with the fewest m
 - **The AI is outside the app.** Never add an AI model, API key or chat to the app.
 - **No rules on the AI.** An AI can change anything the person can; the server doesn't check who wrote what. Don't add restrictions or guardrails the owner didn't ask for. The AI's instructions (`server/src/mcp.ts`) ask it to save its tags as suggestions for the person to confirm; keep them and the tool descriptions truthful.
 - **Everything is attributed and undoable**, through the change log.
-- **Privacy.** No sign-up, analytics, crash reporting, ads or third-party SDKs. The privacy manifest declares exactly photos and user content, unlinked, for app functionality; `scripts/verify-ios-bundle.py` checks the built app.
 
 ## Commands
 
