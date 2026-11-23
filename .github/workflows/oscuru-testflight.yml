@@ -1,0 +1,56 @@
+name: Oscuru TestFlight (temporary)
+
+# Temporary, approved by the owner on 2026-11-23 while away from a computer: builds Oscuru
+# (github.com/Maaarcocr/oscuru) and sends it to TestFlight with this team's Apple credentials.
+# It runs only on pushes to this branch that change .github/oscuru-build-request, and builds
+# exactly the Oscuru commit named there. Remove it once Oscuru has its own signing secrets.
+on:
+  push:
+    branches: [claude/youthful-gates-jldvp7]
+    paths: [.github/oscuru-build-request, .github/workflows/oscuru-testflight.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oscuru-testflight
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    name: Build Oscuru and send it to TestFlight
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/oscuru-build-request
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Read the requested Oscuru commit
+        id: request
+        run: |
+          SHA="$(tr -d '[:space:]' < .github/oscuru-build-request)"
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'The request must be a full commit hash.' >&2; exit 1; }
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          repository: Maaarcocr/oscuru
+          ref: ${{ steps.request.outputs.sha }}
+          path: oscuru
+          persist-credentials: false
+      - name: Tools
+        run: |
+          xcodebuild -version
+          brew install xcodegen
+      - name: Sign, build and upload
+        env:
+          TEAM_ID: ${{ vars.PUTIA_TEAM_ID }}
+          APPLE_DISTRIBUTION_P12_BASE64: ${{ secrets.APPLE_DISTRIBUTION_P12_BASE64 }}
+          APPLE_DISTRIBUTION_P12_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_P12_PASSWORD }}
+          ASC_PRIVATE_KEY_BASE64: ${{ secrets.ASC_PRIVATE_KEY_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: ./oscuru/scripts/testflight.sh
