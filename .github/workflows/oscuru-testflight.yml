@@ -14,7 +14,8 @@ permissions:
 
 concurrency:
   group: oscuru-testflight
-  cancel-in-progress: false
+  # A newer request replaces a build still running (one waiting on a step by hand included).
+  cancel-in-progress: true
 
 jobs:
   testflight:
@@ -53,6 +54,7 @@ jobs:
           ASC_PRIVATE_KEY_BASE64: ${{ secrets.ASC_PRIVATE_KEY_BASE64 }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          # Waits this long for the owner to accept Apple's agreement and create the app record.
-          ASC_WAIT_MINUTES: "180"
+          # Waits this long for the owner to accept Apple's agreement and create the app record. Briefly
+          # 0 so a refusal shows its reason at once; back to 180 once the extensions are signed.
+          ASC_WAIT_MINUTES: "0"
         run: ./oscuru/scripts/testflight.sh
