@@ -1,0 +1,56 @@
+name: Oscuru crash reports (temporary)
+
+# Temporary, as oscuru-testflight.yml: reads the crash reports testers sent from TestFlight for
+# Oscuru, with this team's App Store Connect key, and keeps them as an artifact of the run. Read
+# only. Runs on pushes to this branch that change .github/oscuru-crash-request, which names the
+# Oscuru commit whose scripts/asc.py does the reading.
+on:
+  push:
+    branches: [claude/youthful-gates-jldvp7]
+    paths: [.github/oscuru-crash-request]
+
+permissions:
+  contents: read
+
+jobs:
+  crashes:
+    name: Read Oscuru's TestFlight crash reports
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/oscuru-crash-request
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Read the requested Oscuru commit
+        id: request
+        run: |
+          SHA="$(tr -d '[:space:]' < .github/oscuru-crash-request)"
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'The request must be a full commit hash.' >&2; exit 1; }
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          repository: Maaarcocr/oscuru
+          ref: ${{ steps.request.outputs.sha }}
+          path: oscuru
+          persist-credentials: false
+      - name: Download the crash reports
+        env:
+          ASC_PRIVATE_KEY_BASE64: ${{ secrets.ASC_PRIVATE_KEY_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          umask 077
+          KEY="$RUNNER_TEMP/asc.p8"
+          printf '%s' "$ASC_PRIVATE_KEY_BASE64" | base64 --decode > "$KEY"
+          trap 'rm -f "$KEY"' EXIT
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet --disable-pip-version-check pyjwt cryptography
+          ASC_KEY_PATH="$KEY" "$RUNNER_TEMP/venv/bin/python" oscuru/scripts/asc.py crashes crashes
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oscuru-crashes
+          path: crashes
+          retention-days: 14
