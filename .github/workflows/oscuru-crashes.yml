@@ -26,7 +26,7 @@ jobs:
       - name: Read the requested Oscuru commit
         id: request
         run: |
-          SHA="$(tr -d '[:space:]' < .github/oscuru-crash-request)"
+          SHA="$(head -n 1 .github/oscuru-crash-request | tr -d '[:space:]')"
           [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'The request must be a full commit hash.' >&2; exit 1; }
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
