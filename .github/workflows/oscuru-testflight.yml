@@ -20,10 +20,9 @@ concurrency:
 jobs:
   testflight:
     name: Build Oscuru and send it to TestFlight
-    runs-on: macos-26
+    # Oscuru needs the iOS 27 SDK (its camera's exposure controls): GitHub's Xcode 27 image.
+    runs-on: xcode-27
     timeout-minutes: 240
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
         with:
