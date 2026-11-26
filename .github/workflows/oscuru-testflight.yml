@@ -55,4 +55,6 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           # Waits this long for the owner to accept Apple's agreement and create the app record.
           ASC_WAIT_MINUTES: "180"
+          # Build numbers never go below the run number: two uploads minutes apart cannot share one.
+          BUILD_NUMBER_FLOOR: ${{ github.run_number }}
         run: ./oscuru/scripts/testflight.sh
