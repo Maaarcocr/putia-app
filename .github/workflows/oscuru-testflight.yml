@@ -2,6 +2,8 @@ name: Oscuru TestFlight (temporary)
 
 # Temporary, approved by the owner on 2026-11-23 while away from a computer: builds Oscuru
 # (github.com/Maaarcocr/oscuru) and sends it to TestFlight with this team's Apple credentials.
+# Since 2026-11-26, at the owner's request, each build then goes to the invited testers' group
+# ("Friends", joined with its invitation link) and to Apple's beta review.
 # It runs only on pushes to this branch that change .github/oscuru-build-request, and builds
 # exactly the Oscuru commit named there. Remove it once Oscuru has its own signing secrets.
 on:
@@ -23,6 +25,9 @@ jobs:
     # Oscuru needs the iOS 27 SDK (its camera's exposure controls): GitHub's Xcode 27 image.
     runs-on: xcode-27
     timeout-minutes: 240
+    outputs:
+      build: ${{ steps.upload.outputs.build }}
+      sha: ${{ steps.request.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,6 +51,7 @@ jobs:
           xcodebuild -version
           brew install xcodegen
       - name: Sign, build and upload
+        id: upload
         env:
           TEAM_ID: ${{ vars.PUTIA_TEAM_ID }}
           APPLE_DISTRIBUTION_P12_BASE64: ${{ secrets.APPLE_DISTRIBUTION_P12_BASE64 }}
@@ -58,3 +64,37 @@ jobs:
           # Build numbers never go below the run number: two uploads minutes apart cannot share one.
           BUILD_NUMBER_FLOOR: ${{ github.run_number }}
         run: ./oscuru/scripts/testflight.sh
+
+  share:
+    name: Give the build to the invited testers
+    needs: testflight
+    # Waiting for Apple to process the build takes no Mac.
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Maaarcocr/oscuru
+          ref: ${{ needs.testflight.outputs.sha }}
+          path: oscuru
+          persist-credentials: false
+      - name: Add the build to the group and send it to beta review
+        env:
+          ASC_PRIVATE_KEY_BASE64: ${{ secrets.ASC_PRIVATE_KEY_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          OSCURU_PRIVACY_URL: ${{ vars.OSCURU_PRIVACY_URL }}
+          OSCURU_TESTER_LIMIT: ${{ vars.OSCURU_TESTER_LIMIT }}
+          BUILD: ${{ needs.testflight.outputs.build }}
+        run: |
+          set -euo pipefail
+          umask 077
+          [[ "$BUILD" =~ ^[0-9]+$ ]] || { echo 'No build number from the upload.' >&2; exit 1; }
+          KEY="$RUNNER_TEMP/asc.p8"
+          printf '%s' "$ASC_PRIVATE_KEY_BASE64" | base64 --decode > "$KEY"
+          trap 'rm -f "$KEY"' EXIT
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet --disable-pip-version-check pyjwt cryptography
+          # What to test: the latest change, in its own words.
+          git -C oscuru log -1 --format=%s > "$RUNNER_TEMP/what-to-test.txt"
+          ASC_KEY_PATH="$KEY" "$RUNNER_TEMP/venv/bin/python" oscuru/scripts/asc.py share "$BUILD" "$RUNNER_TEMP/what-to-test.txt"
